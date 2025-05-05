@@ -1,0 +1,13 @@
+.buttonContainer > button {
+    justify-content: flex-start;
+    text-align: left;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: white;
+    padding: 2px 6px;
+    text-transform: none;
+}
+
+.buttonContainer > button:hover {
+    background-color: #f0f0f0;
+}

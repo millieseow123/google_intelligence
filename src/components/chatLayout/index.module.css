@@ -1,0 +1,6 @@
+.sendButton {
+  position: absolute;
+  right: 8;
+  bottom: 2;
+  z-index: 1;
+}
