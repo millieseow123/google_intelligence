@@ -5,6 +5,10 @@
   height: 100%;
 }
 
+.textEditor > p {
+    padding: 8px 0px;
+}
+
 .text {
   color: black;
 }

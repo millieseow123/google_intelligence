@@ -3,15 +3,16 @@
 import { useState } from 'react'
 import { ReactEditor, withReact } from 'slate-react'
 import { createEditor, Descendant, Text, Transforms } from 'slate'
-import { Box, Container, Typography, Paper } from '@mui/material'
+import { Box, Typography, Paper } from '@mui/material'
 import TextEditor from '../textEditor/textEditor'
 import { renderSlateContent } from '@/utils/renderSlateContent'
+import FilePreview from '../filePreview/filePreview'
+import ChatHistory, { ChatMessage } from '../chatHistory/chatHistory'
 
 import styles from './index.module.css'
 
 export default function ChatLayout() {
-    const [messages, setMessages] = useState<Descendant[][]>([])
-    console.log("messages", messages)
+    const [messages, setMessages] = useState<ChatMessage[]>([])
     const [editorValue, setEditorValue] = useState<Descendant[]>([
         {
             type: 'paragraph',
@@ -19,6 +20,7 @@ export default function ChatLayout() {
         }
     ])
     const [editor] = useState(() => withReact(createEditor()))
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null)
 
 
     const handleSend = () => {
@@ -26,15 +28,15 @@ export default function ChatLayout() {
             'children' in node && node.children.some(child => Text.isText(child) && child.text.trim() !== '')
         )
 
-        if (!hasText) return
-        setMessages(prev => [...prev, editorValue])
+        if (!hasText && !uploadedFile) return
+        setMessages(prev => [...prev, { text: editorValue, file: uploadedFile }])
         setEditorValue([
             {
                 type: 'paragraph',
                 children: [{ text: '' }],
             },
         ])
-
+        setUploadedFile(null);
         Transforms.select(editor, {
             anchor: { path: [0, 0], offset: 0 },
             focus: { path: [0, 0], offset: 0 }
@@ -44,48 +46,66 @@ export default function ChatLayout() {
     }
 
     return (
-        <Container maxWidth="sm" sx={{ height: '100vh', display: 'flex', flexDirection: 'column', py: 2 }}>
+        <Box
+            sx={{
+                height: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                bgcolor: '#1e1e1e',
+                padding: '16px 48px',
+                borderRadius: 3,
+                boxSizing: 'border-box',
+                mx: 'auto',
+            }}
+        >
             {/* Header */}
             <Typography variant="h5" textAlign="center">
                 Google Intelligence
             </Typography>
 
             {/* Chat History */}
-            {messages.length > 0 && (<Paper
-                elevation={3}
+            <Box
                 sx={{
-                    flex: 1,
-                    overflowY: 'auto',
-                    p: 2,
-                    mb: 2,
-                    bgcolor: '#f5f5f5',
-                    borderRadius: 2
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: messages.length === 0 ? 'center' : 'space-between',
+                    flexGrow: 1,
                 }}
             >
-                {
-                    messages.map((msg, idx) => (
-                        <Box key={idx} sx={{ mb: 1 }}>
-                            <Typography variant="body2" sx={{ p: 1, bgcolor: 'white', borderRadius: 2 }}>
-                                {renderSlateContent(msg)}
-                            </Typography>
-                        </Box>
-                    ))
-                }
-            </Paper>)}
+                {messages.length > 0 && (
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            flexGrow: 1,
+                            overflowY: 'auto',
+                            p: 2,
+                            borderRadius: 3,
+                            bgcolor: 'black',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'flex-end',
+                            gap: 2,
+                        }}
+                    >
+                        <ChatHistory messages={messages} />
 
-            {/* Input Bar */}
-            <Box sx={{
-                position: messages.length > 0 ? 'relative' : 'absolute', // Absolute when no messages
-                bottom: messages.length > 0 ? '0' : '50%', // Center vertically when no messages
-                transform: messages.length > 0 ? 'none' : 'translateY(50%)', // Center alignment
-            }}>
+                    </Paper>
+                )}
+
+                {/* Input Bar */}
                 <Box
                     sx={{
+                        mt: messages.length > 0 ? 2 : 0,
                         border: '1px solid #ccc',
                         borderRadius: 2,
                         bgcolor: 'white',
-                        p: '12px',
-                        minHeight: '60px'
+                        p: 2,
+                        boxSizing: 'border-box',
+                        maxWidth: '100%',
+                        transform: messages.length === 0 ? 'translateY(-50%)' : 'none',
+                        transition: 'transform 0.4s ease-in-out',
+                        alignSelf: 'center',
+                        width: '100%',
                     }}
                 >
                     <TextEditor
@@ -93,9 +113,11 @@ export default function ChatLayout() {
                         value={editorValue}
                         onChange={setEditorValue}
                         onSubmit={handleSend}
+                        uploadedFile={uploadedFile}
+                        onFileSelect={setUploadedFile}
                     />
                 </Box>
             </Box>
-        </Container>
+        </Box>
     )
 }

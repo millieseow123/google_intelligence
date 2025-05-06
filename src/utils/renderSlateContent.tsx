@@ -1,6 +1,5 @@
 import React from 'react'
 import { Descendant, Text } from 'slate'
-import { Typography } from '@mui/material'
 
 export const renderSlateContent = (nodes: Descendant[]) => {
     return nodes.map((node, i) => {
@@ -19,9 +18,9 @@ export const renderSlateContent = (nodes: Descendant[]) => {
             switch (node.type) {
                 case 'paragraph':
                     return (
-                        <Typography key={i} variant="body2" sx={{ mb: 1 }}>
+                        <div key={i} style={{ marginBottom: '8px' }}>
                             {renderSlateContent(node.children)}
-                        </Typography>
+                        </div>
                     )
                 case 'bulleted-list':
                     return (
