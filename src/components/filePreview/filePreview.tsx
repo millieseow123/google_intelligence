@@ -1,4 +1,4 @@
-import { Box, Paper, Typography, IconButton, Avatar } from '@mui/material'
+import { Box, Paper, Typography, IconButton, Avatar, Tooltip } from '@mui/material'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import CloseIcon from '@mui/icons-material/Close'
 
@@ -48,13 +48,15 @@ export default function FilePreview({ file, onRemove, showRemove = true }: FileP
                 </Typography>
             </Box>
             {showRemove && (
-                <IconButton onClick={onRemove}
-                    sx={{
-                        p: 0,
-                        pl: 1
-                    }}>
-                    <CloseIcon sx={{ color: 'white' }} />
-                </IconButton>
+                <Tooltip title="Remove file">
+                    <IconButton onClick={onRemove}
+                        sx={{
+                            p: 0,
+                            pl: 1
+                        }}>
+                        <CloseIcon fontSize="small" sx={{ color: 'white' }} />
+                    </IconButton>
+                </Tooltip>
             )}
         </Paper>
     )

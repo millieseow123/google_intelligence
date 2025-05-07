@@ -5,11 +5,11 @@ import { ReactEditor, withReact } from 'slate-react'
 import { createEditor, Descendant, Text, Transforms } from 'slate'
 import { Box, Typography, Paper } from '@mui/material'
 import TextEditor from '../textEditor/textEditor'
-import { renderSlateContent } from '@/utils/renderSlateContent'
-import FilePreview from '../filePreview/filePreview'
-import ChatHistory, { ChatMessage } from '../chatHistory/chatHistory'
+import ChatHistory from '../chatHistory/chatHistory'
+import { ChatMessage, Sender } from '@/types/chat'
 
 import styles from './index.module.css'
+import { useVoiceInput } from '@/hooks/useVoiceInput'
 
 export default function ChatLayout() {
     const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -21,7 +21,14 @@ export default function ChatLayout() {
     ])
     const [editor] = useState(() => withReact(createEditor()))
     const [uploadedFile, setUploadedFile] = useState<File | null>(null)
-
+    const [isGenerating, setIsGenerating] = useState(false)
+    const {
+        transcript,
+        listening,
+        startListening,
+        stopListening,
+        resetTranscript
+    } = useVoiceInput()
 
     const handleSend = () => {
         const hasText = editorValue.some(node =>
@@ -29,7 +36,12 @@ export default function ChatLayout() {
         )
 
         if (!hasText && !uploadedFile) return
-        setMessages(prev => [...prev, { text: editorValue, file: uploadedFile }])
+        setMessages(prev => [
+            ...prev,
+            { text: editorValue, file: uploadedFile, sender: Sender.USER },
+            { text: [{ type: 'paragraph', children: [{ text: 'Waiting for bot...' }] }], sender: Sender.BOT },
+        ])
+
         setEditorValue([
             {
                 type: 'paragraph',
@@ -37,12 +49,28 @@ export default function ChatLayout() {
             },
         ])
         setUploadedFile(null);
+        resetTranscript();
+        setIsGenerating(true)
+
+        // TO REPLACE: Simulate a bot response after 2 seconds
+        setTimeout(() => {
+            setMessages(prev => [
+                ...prev,
+                { text: [{ type: 'paragraph', children: [{ text: 'This is a bot response' }] }], sender: Sender.BOT },
+            ])
+            setIsGenerating(false)
+        }, 2000)
+
         Transforms.select(editor, {
             anchor: { path: [0, 0], offset: 0 },
             focus: { path: [0, 0], offset: 0 }
         })
         ReactEditor.focus(editor)
 
+    }
+
+    const handleStop = () => {
+        setIsGenerating(false)
     }
 
     return (
@@ -54,8 +82,8 @@ export default function ChatLayout() {
                 bgcolor: '#1e1e1e',
                 padding: '16px 48px',
                 borderRadius: 3,
-                boxSizing: 'border-box',
-                mx: 'auto',
+                // boxSizing: 'border-box',
+                // mx: 'auto',
             }}
         >
             {/* Header */}
@@ -70,6 +98,7 @@ export default function ChatLayout() {
                     flexDirection: 'column',
                     justifyContent: messages.length === 0 ? 'center' : 'space-between',
                     flexGrow: 1,
+                    minHeight: 0,
                 }}
             >
                 {messages.length > 0 && (
@@ -77,13 +106,12 @@ export default function ChatLayout() {
                         elevation={3}
                         sx={{
                             flexGrow: 1,
-                            overflowY: 'auto',
+                            minHeight: 0,
                             p: 2,
                             borderRadius: 3,
                             bgcolor: 'black',
                             display: 'flex',
                             flexDirection: 'column',
-                            justifyContent: 'flex-end',
                             gap: 2,
                         }}
                     >
@@ -113,8 +141,19 @@ export default function ChatLayout() {
                         value={editorValue}
                         onChange={setEditorValue}
                         onSubmit={handleSend}
-                        uploadedFile={uploadedFile}
-                        onFileSelect={setUploadedFile}
+                        fileUpload={{
+                            uploadedFile,
+                            onFileSelect: setUploadedFile,
+                        }}
+                        isGenerating={isGenerating}
+                        onStop={handleStop}
+                        voiceInput={{
+                            transcript,
+                            listening,
+                            startListening,
+                            stopListening,
+                            resetTranscript,
+                        }}
                     />
                 </Box>
             </Box>

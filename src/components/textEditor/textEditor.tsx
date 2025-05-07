@@ -1,22 +1,37 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Descendant } from 'slate'
 import { Slate, Editable, ReactEditor } from 'slate-react'
-import { Box, IconButton } from '@mui/material'
-import { East } from '@mui/icons-material'
+import { Box, Tooltip } from '@mui/material'
+import { ArrowForward, Mic, Stop } from '@mui/icons-material'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
-import ImageIcon from '@mui/icons-material/Image'
 import StaticToolbar from '../toolbar/toolbar'
-import ActionButton from '../actionButton/actionButton'
+import IconTextButton from '../iconTextButton/iconTextButton'
 import { toggleMark } from '@/utils/editorUtils'
+import FilePreview from '../filePreview/filePreview'
+import RoundIconButton from '../roundIconButton/roundIconButton'
 
 import styles from './index.module.css'
-import FilePreview from '../filePreview/filePreview'
 
 interface TextEditorProps {
     value: Descendant[]
     editor: ReactEditor
     onChange: (newValue: Descendant[]) => void
     onSubmit: () => void
+    isGenerating: boolean
+    onStop: () => void
+    voiceInput: VoiceInputProps
+    fileUpload: FileUploadProps
+}
+
+export interface VoiceInputProps {
+    transcript: string
+    listening: boolean
+    startListening: () => void
+    stopListening: () => void
+    resetTranscript: () => void
+}
+
+export interface FileUploadProps {
     uploadedFile: File | null
     onFileSelect: (file: File | null) => void
 }
@@ -80,8 +95,11 @@ const renderElement = ({ attributes, children, element }: any) => {
     }
 }
 
-export default function TextEditor({ editor, value, onChange, onSubmit, uploadedFile, onFileSelect }: TextEditorProps) {
+export default function TextEditor({ editor, value, onChange, onSubmit, fileUpload, isGenerating, onStop, voiceInput  }: TextEditorProps) {
     const [isDragging, setIsDragging] = useState(false);
+    const { transcript, listening, startListening, stopListening, resetTranscript } = voiceInput;
+    const { uploadedFile, onFileSelect } = fileUpload;
+
 
     const handleDragOver = (event: React.DragEvent) => {
         event.preventDefault()
@@ -134,6 +152,28 @@ export default function TextEditor({ editor, value, onChange, onSubmit, uploaded
         },
         [onSubmit, editor]
     )
+
+    useEffect(() => {
+        if (transcript) {
+            onChange([
+                {
+                    type: 'paragraph',
+                    children: [{ text: transcript }],
+                },
+            ])
+        }
+    }, [transcript])
+
+    useEffect(() => {
+        const isEditorEmpty =
+            value.length === 1 &&
+            value[0].type === 'paragraph' &&
+            value[0].children?.[0]?.text === ''
+        if (isEditorEmpty) {
+            resetTranscript()
+        }
+
+    }, [value])
 
     return (
         <div className={styles.textEditor}>
@@ -194,48 +234,67 @@ export default function TextEditor({ editor, value, onChange, onSubmit, uploaded
                             style={{ outline: 'none', width: '100%', padding: '8px 0px' }}
                             className={styles.text}
                         />
-                        <IconButton
-                            color="primary"
-                            onClick={onSubmit}
-                            sx={{
-                                position: 'absolute',
-                                right: 8,
-                                bottom: 8,
-                                zIndex: 2,
-                                border: '2px solid #1e1e1e',
-                                borderRadius: '50%',
-                                padding: '4px',
-                                '&:hover': {
-                                    backgroundColor: '#f0f0f0',
-                                },
-                            }}
-                        >
-                            <East sx={{ color: '#1e1e1e' }} />
-                        </IconButton>
-
                         <Box
                             sx={{
-                                gap: 1,
-                                flexDirection: 'row',
                                 display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                mt: 1,
+                                position: 'relative',
                             }}
                         >
-                            <ActionButton name="Attach file"
-                                icon={<AttachFileIcon />}
-                                onClick={() => document.getElementById('fileInput')?.click()} />
-                            <input
-                                id="fileInput"
-                                type="file"
-                                style={{ display: 'none' }}
-                                onChange={(event) => {
-                                    const file = event.target.files?.[0];
-                                    if (file) onFileSelect(file)
-                                }}
-                            />
+                            <Tooltip title="Add photos and files" arrow>
+                                <Box>
+                                    <IconTextButton
+                                        name="Attach file"
+                                        icon={<AttachFileIcon />}
+                                        onClick={() => document.getElementById('fileInput')?.click()}
+                                    />
+                                    <input
+                                        id="fileInput"
+                                        type="file"
+                                        style={{ display: 'none' }}
+                                        onChange={(event) => {
+                                            const file = event.target.files?.[0];
+                                            if (file) onFileSelect(file)
+                                        }}
+                                    />
+                                </Box>
+                            </Tooltip>
+
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Tooltip title="Voice input" arrow>
+                                    <RoundIconButton
+                                        onClick={listening ? stopListening : startListening}
+                                        icon={listening ? <Stop fontSize="small" /> : <Mic fontSize="small" />}
+                                        sx={{
+                                            width: 32,
+                                            height: 32,
+                                            bgcolor: '#f0f0f0',
+                                            color: '#333',
+                                            border: '1px solid #ccc',
+                                            '&:hover': {
+                                                bgcolor: '#e0e0e0',
+                                            },
+                                        }}
+                                    />
+                                </Tooltip>
+                                <RoundIconButton
+                                    onClick={isGenerating ? onStop : onSubmit}
+                                    icon={
+                                        isGenerating ? <Stop fontSize="small" sx={{ color: '#1e1e1e' }} /> : <ArrowForward fontSize="small" />
+                                    } sx={{
+                                        width: 32,
+                                        height: 32,
+                                        padding: '4px',
+                                    }}
+                                />
+                            </Box>
                         </Box>
+
                     </Box>
                 </Slate>
-            </Box>
-        </div>
+            </Box >
+        </div >
     )
 }

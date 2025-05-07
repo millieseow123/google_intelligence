@@ -10,6 +10,7 @@ import FormatAlignJustifyIcon from '@mui/icons-material/FormatAlignJustify'
 import ToolbarButton from '../toolbarButton/toolbarButton';
 
 import styles from './index.module.css'
+import { CustomElement } from '@/types/customElement'
 
 const isMarkActive = (editor: any, format: string) => {
     const marks = editor.marks
@@ -26,7 +27,7 @@ const toggleMark = (editor: any, format: string) => {
 }
 
 const isBlockActive = (editor: Editor, format: string) => {
-    const [match] = Editor.nodes(editor, {
+    const [match] = Editor.nodes<CustomElement>(editor, {
         match: n => !Editor.isEditor(n) && SlateElement.isElement(n) && 'type' in n && n.type === format
     })
     return !!match
@@ -42,7 +43,7 @@ const toggleBlock = (editor: Editor, format: string) => {
 }
 
 const setAlignment = (editor: Editor, align: string) => {
-    const [match] = Editor.nodes(editor, {
+    const [match] = Editor.nodes<CustomElement>(editor, {
         match: n =>
             !Editor.isEditor(n) &&
             SlateElement.isElement(n) &&

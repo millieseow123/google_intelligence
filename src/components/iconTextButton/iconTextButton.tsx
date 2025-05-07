@@ -2,13 +2,13 @@ import React from 'react';
 import { Button, Typography } from '@mui/material';
 import styles from './index.module.css';
 
-interface ActionButtonProps {
+interface IconTextButtonProps {
     name: string;
     icon: React.ReactNode;
     onClick?: () => void;
 }
 
-export default function ActionButton({ name, icon, onClick }: ActionButtonProps) {
+export default function IconTextButton({ name, icon, onClick }: IconTextButtonProps) {
     return (
         <div className={styles.buttonContainer}>
             <Button

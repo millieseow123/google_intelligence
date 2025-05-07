@@ -18,7 +18,7 @@ export const renderSlateContent = (nodes: Descendant[]) => {
             switch (node.type) {
                 case 'paragraph':
                     return (
-                        <div key={i} style={{ marginBottom: '8px' }}>
+                        <div key={i}>
                             {renderSlateContent(node.children)}
                         </div>
                     )

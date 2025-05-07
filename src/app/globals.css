@@ -35,6 +35,19 @@ a {
   text-decoration: none;
 }
 
+::-webkit-scrollbar {
+  width: 8px; /* or whatever size you want */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* hides the track */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.3); /* thumb color */
+  border-radius: 4px;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
