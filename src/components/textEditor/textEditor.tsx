@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import { Descendant } from 'slate'
+"use client"
+
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { Transforms, Range, Descendant, Editor } from 'slate'
 import { Slate, Editable, ReactEditor } from 'slate-react'
-import { Box, Tooltip } from '@mui/material'
+import { Box, List, ListItem, ListItemText, Popover, Tooltip } from '@mui/material'
 import { ArrowForward, Mic, Stop } from '@mui/icons-material'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import StaticToolbar from '../toolbar/toolbar'
@@ -9,10 +11,13 @@ import IconTextButton from '../iconTextButton/iconTextButton'
 import { toggleMark } from '@/utils/editorUtils'
 import FilePreview from '../filePreview/filePreview'
 import RoundIconButton from '../roundIconButton/roundIconButton'
+import { Element } from 'slate'
+import { useContacts } from '@/hooks/useContacts'
 
 import styles from './index.module.css'
 
 interface TextEditorProps {
+    accessToken?: string
     value: Descendant[]
     editor: ReactEditor
     onChange: (newValue: Descendant[]) => void
@@ -90,15 +95,39 @@ const renderElement = ({ attributes, children, element }: any) => {
                     {children}
                 </a>
             )
+        case 'mention':
+            return (<span
+                {...attributes}
+                contentEditable={false}
+                style={{
+                    padding: '2px 6px',
+                    margin: '0 2px',
+                    backgroundColor: '#e0f7fa',
+                    borderRadius: '12px',
+                    fontSize: '0.875rem',
+                }}
+            >
+                @{element.character}
+                {children}
+            </span>
+            )
         default:
             return <p {...attributes} style={style}>{children}</p>
     }
 }
 
-export default function TextEditor({ editor, value, onChange, onSubmit, fileUpload, isGenerating, onStop, voiceInput  }: TextEditorProps) {
+export default function TextEditor({ accessToken, editor, value, onChange, onSubmit, fileUpload, isGenerating, onStop, voiceInput }: TextEditorProps) {
     const [isDragging, setIsDragging] = useState(false);
     const { transcript, listening, startListening, stopListening, resetTranscript } = voiceInput;
     const { uploadedFile, onFileSelect } = fileUpload;
+    const [target, setTarget] = useState<Range | null>(null)
+    const [search, setSearch] = useState('')
+    const contacts = useContacts(accessToken)
+    console.log("ONTACTSSSSS ", contacts)
+    const filteredContacts = contacts.filter(c =>
+        c.name.toLowerCase().startsWith(search.toLowerCase())
+    )
+    const [lastTranscript, setLastTranscript] = useState('')
 
 
     const handleDragOver = (event: React.DragEvent) => {
@@ -154,27 +183,50 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
     )
 
     useEffect(() => {
-        if (transcript) {
+        if (transcript && transcript !== lastTranscript) {
+            const newText = transcript.slice(lastTranscript.length)
+            let currentText = ''
+
+            if (Element.isElement(value[0])) {
+                currentText = value[0].children?.[0]?.text || ''
+            }
             onChange([
                 {
                     type: 'paragraph',
-                    children: [{ text: transcript }],
+                    children: [{ text: currentText + newText }],
                 },
             ])
+
+            setLastTranscript(transcript)
         }
     }, [transcript])
+
 
     useEffect(() => {
         const isEditorEmpty =
             value.length === 1 &&
+            Element.isElement(value[0]) &&
             value[0].type === 'paragraph' &&
             value[0].children?.[0]?.text === ''
+
         if (isEditorEmpty) {
             resetTranscript()
         }
 
     }, [value])
 
+    const dropdownRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        if (target && dropdownRef.current) {
+            const domRange = ReactEditor.toDOMRange(editor, target)
+            const rect = domRange.getBoundingClientRect()
+            const el = dropdownRef.current
+
+            el.style.top = `${rect.top + window.scrollY + 24}px`
+            el.style.left = `${rect.left + window.scrollX}px`
+        }
+    }, [target, editor])
     return (
         <div className={styles.textEditor}>
             <Box
@@ -208,8 +260,27 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
                         <span style={{ fontSize: '1.1rem', color: '#333' }}>Drop file to upload</span>
                     </Box>
                 )}
-                <Slate key={JSON.stringify(value)} editor={editor} value={value} onChange={onChange}>
-                    <StaticToolbar />
+                <Slate key={JSON.stringify(value)} editor={editor} value={value} onChange={(newValue) => {
+                    onChange(newValue);
+                    // TODO: Implement @ mentions fn in editor
+                    const { selection } = editor;
+                    if (selection && Range.isCollapsed(selection)) {
+                        const [start] = Range.edges(selection);
+                        const wordBefore = Editor.before(editor, start, { unit: 'word' });
+                        const before = wordBefore && Editor.range(editor, wordBefore, start);
+                        const beforeText = before && Editor.string(editor, before);
+
+                        if (beforeText?.startsWith('@')) {
+                            setTarget(before);
+                            setSearch(beforeText.slice(1));
+                        } else {
+                            setTarget(null);
+                        }
+                    } else {
+                        setTarget(null);
+                    }
+                }}>
+                    <StaticToolbar contacts={filteredContacts} />
                     <Box
                         sx={{
                             padding: '12px',
@@ -234,6 +305,7 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
                             style={{ outline: 'none', width: '100%', padding: '8px 0px' }}
                             className={styles.text}
                         />
+
                         <Box
                             sx={{
                                 display: 'flex',
@@ -243,7 +315,7 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
                                 position: 'relative',
                             }}
                         >
-                            <Tooltip title="Add photos and files" arrow>
+                            <Tooltip title="Add photos and files">
                                 <Box>
                                     <IconTextButton
                                         name="Attach file"
@@ -263,7 +335,7 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
                             </Tooltip>
 
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Tooltip title="Voice input" arrow>
+                                <Tooltip title="Voice input">
                                     <RoundIconButton
                                         onClick={listening ? stopListening : startListening}
                                         icon={listening ? <Stop fontSize="small" /> : <Mic fontSize="small" />}
@@ -282,8 +354,17 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
                                 <RoundIconButton
                                     onClick={isGenerating ? onStop : onSubmit}
                                     icon={
-                                        isGenerating ? <Stop fontSize="small" sx={{ color: '#1e1e1e' }} /> : <ArrowForward fontSize="small" />
-                                    } sx={{
+                                        isGenerating ? <Stop fontSize="small" /> : <ArrowForward fontSize="small" />
+                                    }
+                                    disabled={
+                                        isGenerating ||
+                                        value.length === 0 ||
+                                        (value.length === 1 &&
+                                            Element.isElement(value[0]) &&
+                                            value[0].type === 'paragraph' &&
+                                            value[0].children?.[0]?.text.trim() === '')
+                                    }
+                                    sx={{
                                         width: 32,
                                         height: 32,
                                         padding: '4px',

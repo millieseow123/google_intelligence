@@ -6,6 +6,7 @@ export type CustomElement =
     | { type: 'block-quote'; children: CustomText[] }
     | { type: 'code-block'; children: CustomText[] }
     | { type: 'link'; url: string; children: CustomText[] }
+    | MentionElement
 
 export type CustomText = BaseText & {
     text: string
@@ -13,4 +14,10 @@ export type CustomText = BaseText & {
     italic?: boolean
     underline?: boolean
     strikethrough?: boolean
+}
+
+export type MentionElement = {
+    type: 'mention'
+    character: string
+    children: [{ text: '' }]
 }

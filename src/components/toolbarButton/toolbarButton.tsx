@@ -6,9 +6,10 @@ interface ToolbarButtonProps {
     icon: JSX.Element;
     onClick: () => void;
     disabled?: boolean;
+    buttonRef?: React.Ref<HTMLButtonElement>;
 }
 
-const ToolbarButton: React.FC<ToolbarButtonProps> = ({ tooltip, icon, onClick, disabled }) => (
+const ToolbarButton: React.FC<ToolbarButtonProps> = ({ tooltip, icon, onClick, disabled, buttonRef }) => (
     <Tooltip title={tooltip || ''}>
         <span>
             <IconButton
@@ -17,6 +18,7 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({ tooltip, icon, onClick, d
                     onClick();
                 }}
                 size="small"
+                ref={buttonRef}
                 sx={{
                     borderRadius: 2,
                     padding: '6px',

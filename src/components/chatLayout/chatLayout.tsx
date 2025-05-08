@@ -3,15 +3,21 @@
 import { useState } from 'react'
 import { ReactEditor, withReact } from 'slate-react'
 import { createEditor, Descendant, Text, Transforms } from 'slate'
-import { Box, Typography, Paper } from '@mui/material'
+import { Box, Paper } from '@mui/material'
 import TextEditor from '../textEditor/textEditor'
 import ChatHistory from '../chatHistory/chatHistory'
 import { ChatMessage, Sender } from '@/types/chat'
+// import { withMentions } from '@/plugins/mentionPlugin'
+
 
 import styles from './index.module.css'
 import { useVoiceInput } from '@/hooks/useVoiceInput'
 
-export default function ChatLayout() {
+interface ChatLayoutProps {
+    accessToken?: string
+}
+
+export default function ChatLayout({ accessToken }: ChatLayoutProps) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [editorValue, setEditorValue] = useState<Descendant[]>([
         {
@@ -19,9 +25,10 @@ export default function ChatLayout() {
             children: [{ text: '' }]
         }
     ])
-    const [editor] = useState(() => withReact(createEditor()))
+    const [editor] = useState(() => (withReact(createEditor())))
     const [uploadedFile, setUploadedFile] = useState<File | null>(null)
     const [isGenerating, setIsGenerating] = useState(false)
+
     const {
         transcript,
         listening,
@@ -81,16 +88,8 @@ export default function ChatLayout() {
                 flexDirection: 'column',
                 bgcolor: '#1e1e1e',
                 padding: '16px 48px',
-                borderRadius: 3,
-                // boxSizing: 'border-box',
-                // mx: 'auto',
             }}
         >
-            {/* Header */}
-            <Typography variant="h5" textAlign="center">
-                Google Intelligence
-            </Typography>
-
             {/* Chat History */}
             <Box
                 sx={{
@@ -137,6 +136,7 @@ export default function ChatLayout() {
                     }}
                 >
                     <TextEditor
+                        accessToken={accessToken}
                         editor={editor}
                         value={editorValue}
                         onChange={setEditorValue}
