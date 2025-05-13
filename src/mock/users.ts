@@ -1,0 +1,23 @@
+export const dummyUsers = [
+    { id: '1', name: 'Alice Johnson', email: 'alice.johnson@example.com' },
+    { id: '2', name: 'Bob Smith', email: 'bob.smith@example.com' },
+    { id: '3', name: 'Charlie Chen', email: 'charlie.chen@example.com' },
+    { id: '4', name: 'Dana Lee', email: 'dana.lee@example.com' },
+    { id: '5', name: 'Ethan Park', email: 'ethan.park@example.com' },
+    { id: '6', name: 'Fiona Davis', email: 'fiona.davis@example.com' },
+    { id: '7', name: 'George Wu', email: 'george.wu@example.com' },
+    { id: '8', name: 'Hannah Kim', email: 'hannah.kim@example.com' },
+    { id: '9', name: 'Ian Patel', email: 'ian.patel@example.com' },
+    { id: '10', name: 'Julia Wong', email: 'julia.wong@example.com' },
+    { id: '11', name: 'Kevin Garcia', email: 'kevin.garcia@example.com' },
+    { id: '12', name: 'Lily Zhang', email: 'lily.zhang@example.com' },
+    { id: '13', name: 'Mike Nguyen', email: 'mike.nguyen@example.com' },
+    { id: '14', name: 'Nina Thompson', email: 'nina.thompson@example.com' },
+    { id: '15', name: 'Oscar Rivera', email: 'oscar.rivera@example.com' },
+    { id: '16', name: 'Paula Tan', email: 'paula.tan@example.com' },
+    { id: '17', name: 'Quincy Adams', email: 'quincy.adams@example.com' },
+    { id: '18', name: 'Rachel Lim', email: 'rachel.lim@example.com' },
+    { id: '19', name: 'Samir Desai', email: 'samir.desai@example.com' },
+    { id: '20', name: 'Tina Chua', email: 'tina.chua@example.com' },
+];
+  

@@ -1,9 +1,9 @@
 "use client"
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Transforms, Range, Descendant, Editor } from 'slate'
+import { Range, Descendant, Editor, Element as SlateElement, Text, Transforms } from 'slate'
 import { Slate, Editable, ReactEditor } from 'slate-react'
-import { Box, List, ListItem, ListItemText, Popover, Tooltip } from '@mui/material'
+import { Box, Tooltip } from '@mui/material'
 import { ArrowForward, Mic, Stop } from '@mui/icons-material'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import StaticToolbar from '../toolbar/toolbar'
@@ -12,12 +12,12 @@ import { toggleMark } from '@/utils/editorUtils'
 import FilePreview from '../filePreview/filePreview'
 import RoundIconButton from '../roundIconButton/roundIconButton'
 import { Element } from 'slate'
-import { useContacts } from '@/hooks/useContacts'
+import { dummyUsers } from '@/mock/users'
+import { CONSTANTS } from '@/constants/text'
 
 import styles from './index.module.css'
 
 interface TextEditorProps {
-    accessToken?: string
     value: Descendant[]
     editor: ReactEditor
     onChange: (newValue: Descendant[]) => void
@@ -66,6 +66,8 @@ const renderElement = ({ attributes, children, element }: any) => {
     switch (element.type) {
         case 'bulleted-list':
             return <ul {...attributes} style={{ margin: 0, paddingLeft: '1.5rem' }}><li>{children}</li></ul>
+        case 'list-item':
+            return <li {...attributes}>{children}</li>;
         case 'block-quote':
             return (
                 <blockquote
@@ -105,9 +107,11 @@ const renderElement = ({ attributes, children, element }: any) => {
                     backgroundColor: '#e0f7fa',
                     borderRadius: '12px',
                     fontSize: '0.875rem',
+                    display: 'inline-block',
+                    verticalAlign: 'baseline',
                 }}
             >
-                @{element.character}
+                @{element.name}
                 {children}
             </span>
             )
@@ -116,19 +120,35 @@ const renderElement = ({ attributes, children, element }: any) => {
     }
 }
 
-export default function TextEditor({ accessToken, editor, value, onChange, onSubmit, fileUpload, isGenerating, onStop, voiceInput }: TextEditorProps) {
+export default function TextEditor({ editor, value, onChange, onSubmit, fileUpload, isGenerating, onStop, voiceInput }: TextEditorProps) {
     const [isDragging, setIsDragging] = useState(false);
     const { transcript, listening, startListening, stopListening, resetTranscript } = voiceInput;
     const { uploadedFile, onFileSelect } = fileUpload;
     const [target, setTarget] = useState<Range | null>(null)
     const [search, setSearch] = useState('')
-    const contacts = useContacts(accessToken)
-    console.log("ONTACTSSSSS ", contacts)
+    const contacts = dummyUsers
     const filteredContacts = contacts.filter(c =>
         c.name.toLowerCase().startsWith(search.toLowerCase())
     )
     const [lastTranscript, setLastTranscript] = useState('')
 
+    function hasContent(nodes: Descendant[]): boolean {
+        return nodes.some(node => {
+            if (Text.isText(node)) {
+                return node.text.trim() !== ''
+            }
+
+            if (SlateElement.isElement(node) && node.type === 'mention') {
+                return true
+            }
+
+            if ('children' in node) {
+                return hasContent(node.children)
+            }
+
+            return false
+        })
+    }
 
     const handleDragOver = (event: React.DragEvent) => {
         event.preventDefault()
@@ -176,6 +196,41 @@ export default function TextEditor({ accessToken, editor, value, onChange, onSub
                         event.preventDefault()
                         toggleMark(editor, 'strikethrough')
                         return
+                }
+            }
+            if (event.key === 'Backspace') {
+                const { selection } = editor;
+
+                if (selection && Range.isCollapsed(selection)) {
+                    const listItemMatch = Editor.above(editor, {
+                        match: n => SlateElement.isElement(n) && n.type === 'bulleted-list',
+                    });
+
+                    if (listItemMatch) {
+                        const [listItemNode, listItemPath] = listItemMatch;
+
+                        const isEmpty = Editor.isEmpty(editor, listItemNode);
+                        const start = Editor.start(editor, listItemPath);
+
+                        if (isEmpty && Editor.isStart(editor, selection.anchor, start)) {
+                            event.preventDefault();
+
+                            // Reset the current node to a paragraph
+                            Transforms.setNodes(
+                                editor,
+                                { type: 'paragraph' },
+                                { at: listItemPath, match: n => SlateElement.isElement(n) && n.type === 'bulleted-list' }
+                            );
+
+                            // Unwrap the list to remove the bullet point
+                            Transforms.unwrapNodes(editor, {
+                                at: listItemPath,
+                                match: n => SlateElement.isElement(n) && n.type === 'bulleted-list',
+                            });
+
+                            return;
+                        }
+                    }
                 }
             }
         },
@@ -257,29 +312,10 @@ export default function TextEditor({ accessToken, editor, value, onChange, onSub
                             pointerEvents: 'none',
                         }}
                     >
-                        <span style={{ fontSize: '1.1rem', color: '#333' }}>Drop file to upload</span>
+                        <span style={{ fontSize: '1.1rem', color: '#333' }}>{CONSTANTS.PLACEHOLDERS.UPLOAD}</span>
                     </Box>
                 )}
-                <Slate key={JSON.stringify(value)} editor={editor} value={value} onChange={(newValue) => {
-                    onChange(newValue);
-                    // TODO: Implement @ mentions fn in editor
-                    const { selection } = editor;
-                    if (selection && Range.isCollapsed(selection)) {
-                        const [start] = Range.edges(selection);
-                        const wordBefore = Editor.before(editor, start, { unit: 'word' });
-                        const before = wordBefore && Editor.range(editor, wordBefore, start);
-                        const beforeText = before && Editor.string(editor, before);
-
-                        if (beforeText?.startsWith('@')) {
-                            setTarget(before);
-                            setSearch(beforeText.slice(1));
-                        } else {
-                            setTarget(null);
-                        }
-                    } else {
-                        setTarget(null);
-                    }
-                }}>
+                <Slate key={JSON.stringify(value)} editor={editor} value={value} onChange={(newValue) => onChange(newValue)}>
                     <StaticToolbar contacts={filteredContacts} />
                     <Box
                         sx={{
@@ -288,6 +324,7 @@ export default function TextEditor({ accessToken, editor, value, onChange, onSub
                             borderRadius: 2,
                             bgcolor: 'white',
                             minHeight: '100px',
+                            maxHeight: '260px',
                             position: 'relative',
                             display: 'flex',
                             flexDirection: 'column',
@@ -297,14 +334,44 @@ export default function TextEditor({ accessToken, editor, value, onChange, onSub
                         {uploadedFile && (
                             <FilePreview file={uploadedFile} onRemove={() => onFileSelect(null)} />
                         )}
-                        <Editable
-                            placeholder="What would you like to do today?"
-                            onKeyDown={handleKeyDown}
-                            renderLeaf={renderLeaf}
-                            renderElement={renderElement}
-                            style={{ outline: 'none', width: '100%', padding: '8px 0px' }}
-                            className={styles.text}
-                        />
+                        {!uploadedFile && SlateElement.isElement(editor.children[0]) &&
+                            Editor.isEmpty(editor, editor.children[0]) &&
+                            editor.children.length === 1 &&
+                            Text.isText(editor.children[0].children?.[0]) && (
+                                <div style={{
+                                    position: 'absolute',
+                                    color: '#aaa',
+                                    pointerEvents: 'none',
+                                    padding: '8px 0',
+                                    fontSize: '1rem',
+                                }}>
+                                    {CONSTANTS.PLACEHOLDERS.EDITOR}
+                                </div>
+                            )}
+                        <Box
+                            sx={{
+                                maxHeight: '160px',  
+                                overflowY: 'auto',     
+                                '&::-webkit-scrollbar': {
+                                    width: '6px',
+                                },
+                                '&::-webkit-scrollbar-thumb': {
+                                    backgroundColor: '#ccc',
+                                    borderRadius: '4px',
+                                },
+                                '&::-webkit-scrollbar-track': {
+                                    backgroundColor: 'transparent',
+                                },
+                            }}
+                        >
+                            <Editable
+                                onKeyDown={handleKeyDown}
+                                renderLeaf={renderLeaf}
+                                renderElement={renderElement}
+                                style={{ outline: 'none', width: '100%', padding: '8px 0px' }}
+                                className={styles.text}
+                            />
+                        </Box>
 
                         <Box
                             sx={{
@@ -315,7 +382,7 @@ export default function TextEditor({ accessToken, editor, value, onChange, onSub
                                 position: 'relative',
                             }}
                         >
-                            <Tooltip title="Add photos and files">
+                            <Tooltip title={CONSTANTS.TOOLTIP.ATTACH}>
                                 <Box>
                                     <IconTextButton
                                         name="Attach file"
@@ -335,7 +402,7 @@ export default function TextEditor({ accessToken, editor, value, onChange, onSub
                             </Tooltip>
 
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Tooltip title="Voice input">
+                                <Tooltip title={CONSTANTS.TOOLTIP.VOICE}>
                                     <RoundIconButton
                                         onClick={listening ? stopListening : startListening}
                                         icon={listening ? <Stop fontSize="small" /> : <Mic fontSize="small" />}
@@ -357,12 +424,8 @@ export default function TextEditor({ accessToken, editor, value, onChange, onSub
                                         isGenerating ? <Stop fontSize="small" /> : <ArrowForward fontSize="small" />
                                     }
                                     disabled={
-                                        isGenerating ||
-                                        value.length === 0 ||
-                                        (value.length === 1 &&
-                                            Element.isElement(value[0]) &&
-                                            value[0].type === 'paragraph' &&
-                                            value[0].children?.[0]?.text.trim() === '')
+                                        !isGenerating &&
+                                        !hasContent(value)
                                     }
                                     sx={{
                                         width: 32,

@@ -1,4 +1,4 @@
-import React, { JSX, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { ReactEditor, useSlate } from 'slate-react'
 import { Editor, Element as SlateElement, Transforms } from 'slate'
 import { Box, Divider, Select, MenuItem, Tooltip } from '@mui/material'
@@ -8,10 +8,12 @@ import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter'
 import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight'
 import FormatAlignJustifyIcon from '@mui/icons-material/FormatAlignJustify'
 import ToolbarButton from '../toolbarButton/toolbarButton';
+import { CustomElement, MarkFormat, ParagraphElement } from '@/types/customElement'
+import Popup from '../popup/popup'
+import { CONSTANTS } from '@/constants/text'
+import { ALIGN } from '@/types/align'
 
 import styles from './index.module.css'
-import { CustomElement } from '@/types/customElement'
-import Popup from '../popup/popup'
 
 interface StaticToolbarProps {
     contacts: { name: string; email: string }[]
@@ -20,31 +22,34 @@ interface StaticToolbarProps {
 export default function StaticToolbar({ contacts }: StaticToolbarProps) {
     const editor = useSlate();
     const mentionButtonRef = useRef<HTMLButtonElement>(null)
+    const [isAlignMenuOpen, setIsAlignMenuOpen] = useState(false);
     const [mentionAnchor, setMentionAnchor] = useState<HTMLElement | null>(null)
     const [isMentionOpen, setIsMentionOpen] = useState(false)
-
+    const [mentionSearch, setMentionSearch] = useState('')
     const linkButtonRef = useRef<HTMLButtonElement>(null)
     const [linkAnchor, setLinkAnchor] = useState<HTMLElement | null>(null)
     const [isLinkOpen, setIsLinkOpen] = useState(false)
-    const [mentionSearch, setMentionSearch] = useState('')
 
-    const isMarkActive = (editor: any, format: string) => {
-        const marks = editor.marks
+    const isMarkActive = (editor: Editor, format: MarkFormat) => {
+        const marks = Editor.marks(editor)
         return marks ? marks[format] === true : false
     }
 
-    const toggleMark = (editor: any, format: string) => {
+    const toggleMark = (editor: Editor, format: MarkFormat) => {
         const isActive = isMarkActive(editor, format)
+
         if (isActive) {
-            editor.removeMark(format)
+            Editor.removeMark(editor, format)
         } else {
-            editor.addMark(format, true)
+            Editor.addMark(editor, format, true)
         }
     }
 
+
     const isBlockActive = (editor: Editor, format: string) => {
         const [match] = Editor.nodes<CustomElement>(editor, {
-            match: n => !Editor.isEditor(n) && SlateElement.isElement(n) && 'type' in n && n.type === format
+            match: n => !Editor.isEditor(n) && SlateElement.isElement(n) && typeof (n as any).type === 'string' &&
+                (n as CustomElement).type === format,
         })
         return !!match
     }
@@ -58,23 +63,54 @@ export default function StaticToolbar({ contacts }: StaticToolbarProps) {
         )
     }
 
-    const setAlignment = (editor: Editor, align: string) => {
+    const getCurrentAlignment = () => {
         const [match] = Editor.nodes<CustomElement>(editor, {
             match: n =>
                 !Editor.isEditor(n) &&
                 SlateElement.isElement(n) &&
-                n.type === 'paragraph',
+                typeof (n as any).type === 'string' &&
+                (n as CustomElement).type === 'paragraph',
+        });
+
+        if (match) {
+            const [element] = match;
+            if (SlateElement.isElement(element) && element.type === 'paragraph') {
+                return element.align || ALIGN.LEFT;
+            }
+        }
+
+        return 'left';
+    };
+
+    const getAlignIcon = (align: string) => {
+        switch (align) {
+            case 'center': return <FormatAlignCenterIcon fontSize="small" />
+            case 'right': return <FormatAlignRightIcon fontSize="small" />
+            case 'justify': return <FormatAlignJustifyIcon fontSize="small" />
+            case 'left':
+            default:
+                return <FormatAlignLeftIcon fontSize="small" />
+        }
+    }
+
+    const setAlignment = (editor: Editor, align: string) => {
+        const [match] = Editor.nodes<CustomElement>(editor, {
+            match: n =>
+                !Editor.isEditor(n) &&
+                SlateElement.isElement(n) && typeof (n as any).type === 'string' &&
+                (n as CustomElement).type === 'paragraph',
         })
 
         if (match) {
             Transforms.setNodes(
                 editor,
-                { align },
+                { align } as Partial<ParagraphElement>,
                 {
                     match: n =>
                         !Editor.isEditor(n) &&
                         SlateElement.isElement(n) &&
-                        n.type === 'paragraph',
+                        typeof (n as any).type === 'string' &&
+                        (n as CustomElement).type === 'paragraph',
                 }
             )
         }
@@ -95,15 +131,16 @@ export default function StaticToolbar({ contacts }: StaticToolbarProps) {
         c.name.toLowerCase().includes(mentionSearch.toLowerCase()) ||
         c.email.toLowerCase().includes(mentionSearch.toLowerCase())
     )
-    const insertMention = (email: string) => {
+    const insertMention = (name: string, email: string) => {
         const mentionNode = {
             type: 'mention',
-            character: email,
+            name,
+            email,
             children: [{ text: '' }],
         }
 
         Transforms.insertNodes(editor, mentionNode)
-        Transforms.move(editor) 
+        Transforms.move(editor)
         ReactEditor.focus(editor)
     }
 
@@ -117,22 +154,25 @@ export default function StaticToolbar({ contacts }: StaticToolbarProps) {
                 mb: 1
             }}
         >
-            <ToolbarButton tooltip="Bold" icon={<FormatBold />} onClick={() => toggleMark(editor, 'bold')} />
-            <ToolbarButton tooltip="Italic" icon={<FormatItalic />} onClick={() => toggleMark(editor, 'italic')} />
-            <ToolbarButton tooltip="Underline" icon={<FormatUnderlined />} onClick={() => toggleMark(editor, 'underline')} />
-            <ToolbarButton tooltip="Strikethrough" icon={<StrikethroughS />} onClick={() => toggleMark(editor, 'strikethrough')} />
+            <ToolbarButton tooltip={CONSTANTS.TOOLTIP.BOLD} icon={<FormatBold />} onClick={() => toggleMark(editor, 'bold')} isActive={isMarkActive(editor, 'bold')} />
+            <ToolbarButton tooltip={CONSTANTS.TOOLTIP.ITALIC} icon={<FormatItalic />} onClick={() => toggleMark(editor, 'italic')} isActive={isMarkActive(editor, 'italic')} />
+            <ToolbarButton tooltip={CONSTANTS.TOOLTIP.UNDERLINE} icon={<FormatUnderlined />} onClick={() => toggleMark(editor, 'underline')} isActive={isMarkActive(editor, 'underline')} />
+            <ToolbarButton tooltip={CONSTANTS.TOOLTIP.STRIKETHROUGH} icon={<StrikethroughS />} onClick={() => toggleMark(editor, 'strikethrough')} isActive={isMarkActive(editor, 'strikethrough')} />
 
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
 
-            <ToolbarButton tooltip="Bullets" icon={<FormatListBulleted />} onClick={() => toggleBlock(editor, 'bulleted-list')} />
-            <Tooltip title="Align">
+            <ToolbarButton tooltip={CONSTANTS.TOOLTIP.BULLETS} icon={<FormatListBulleted />} onClick={() => toggleBlock(editor, 'bulleted-list')} isActive={isBlockActive(editor, 'bulleted-list')} />
+            <Tooltip title={CONSTANTS.TOOLTIP.ALIGN} disableHoverListener={isAlignMenuOpen}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <Select
-                        defaultValue="left"
+                        value={getCurrentAlignment()}
                         size="small"
                         variant="standard"
                         disableUnderline
+                        onOpen={() => setIsAlignMenuOpen(true)}
+                        onClose={() => setIsAlignMenuOpen(false)}
                         onChange={(e) => setAlignment(editor, e.target.value)}
+                        renderValue={() => getAlignIcon(getCurrentAlignment())}
                         sx={{
                             '&:hover': {
                                 borderRadius: 2,
@@ -160,23 +200,25 @@ export default function StaticToolbar({ contacts }: StaticToolbarProps) {
                     </Select>
                 </Box>
             </Tooltip>
-            <ToolbarButton tooltip="Quote" icon={<FormatQuote />} onClick={() => toggleBlock(editor, 'block-quote')} />
-            <ToolbarButton tooltip="Insert code block" icon={<Code />} onClick={() => toggleBlock(editor, 'code-block')} />
-            <ToolbarButton tooltip="Insert link" icon={<LinkIcon />} buttonRef={linkButtonRef} onClick={() => { if (linkButtonRef.current) handleLinkClick(linkButtonRef.current) }} />
+            <ToolbarButton tooltip={CONSTANTS.TOOLTIP.QUOTE} icon={<FormatQuote />} onClick={() => toggleBlock(editor, 'block-quote')} />
+            <ToolbarButton tooltip={CONSTANTS.TOOLTIP.CODE} icon={<Code />} onClick={() => toggleBlock(editor, 'code-block')} />
+            <ToolbarButton tooltip={CONSTANTS.TOOLTIP.LINK} icon={<LinkIcon />} buttonRef={linkButtonRef} onClick={() => { if (linkButtonRef.current) handleLinkClick(linkButtonRef.current) }} />
 
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
 
-            <ToolbarButton tooltip="Mention" icon={<AlternateEmail />} buttonRef={mentionButtonRef} onClick={() => {
+            <ToolbarButton tooltip={CONSTANTS.TOOLTIP.MENTION} icon={<AlternateEmail />} buttonRef={mentionButtonRef} onClick={() => {
                 if (mentionButtonRef.current) handleMentionClick(mentionButtonRef.current)
             }} />
-            <ToolbarButton tooltip="Hash" icon={<Tag />} onClick={() => { }} disabled />
 
 
-            <Popup open={isMentionOpen} anchorEl={mentionAnchor} onClose={() => setIsMentionOpen(false)}>
-                <Box sx={{ p: 2, width: 220 }}>
+            <Popup open={isMentionOpen} anchorEl={mentionAnchor} onClose={() => {
+                setIsMentionOpen(false)
+                setMentionSearch('')
+            }}>
+                <Box sx={{ p: 1, width: 220 }}>
                     <input
                         type="text"
-                        placeholder="Search for a contact"
+                        placeholder={CONSTANTS.PLACEHOLDERS.CONTACT}
                         value={mentionSearch}
                         onChange={(e) => setMentionSearch(e.target.value)}
                         style={{
@@ -204,7 +246,7 @@ export default function StaticToolbar({ contacts }: StaticToolbarProps) {
                             <Box
                                 key={contact.email}
                                 onClick={() => {
-                                    insertMention(contact.email)
+                                    insertMention(contact.name, contact.email)
                                     setIsMentionOpen(false)
                                 }}
                                 sx={{
@@ -226,7 +268,7 @@ export default function StaticToolbar({ contacts }: StaticToolbarProps) {
 
 
             <Popup open={isLinkOpen} anchorEl={linkAnchor} onClose={() => setIsLinkOpen(false)}>
-                <Box sx={{ p: 2, borderRadius: '8px' }}>
+                <Box sx={{ p: 1, borderRadius: '8px' }}>
                     <input
                         type="text"
                         placeholder="Insert link"
@@ -235,7 +277,7 @@ export default function StaticToolbar({ contacts }: StaticToolbarProps) {
                             padding: '8px 12px',
                             border: '1px solid #ccc',
                             borderRadius: '6px',
-                            backgroundColor: '#fff', 
+                            backgroundColor: '#fff',
                             color: '#1e1e1e',
                             outline: 'none',
                             fontSize: '0.9rem'

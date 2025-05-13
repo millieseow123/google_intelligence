@@ -56,7 +56,7 @@ export default function Chat() {
                 )}
             </div>
 
-            <ChatLayout accessToken={session?.accessToken} />
+            <ChatLayout />
         </div>
     )
 }

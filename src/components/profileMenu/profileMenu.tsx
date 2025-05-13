@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, MenuItem } from '@mui/material'
+import { Menu, MenuItem, Typography } from '@mui/material'
 import Image from 'next/image'
+import { CONSTANTS } from '@/constants/text'
 
 interface ProfileMenuProps {
     imageUrl: string
@@ -43,7 +44,11 @@ export default function ProfileMenu({ imageUrl, onSignOutStart }: ProfileMenuPro
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
-                <MenuItem onClick={handleSignOut}>Sign out</MenuItem>
+                <MenuItem onClick={handleSignOut}>
+                    <Typography variant='body2'>
+                        {CONSTANTS.BUTTONS.SIGNOUT}
+                    </Typography>
+                </MenuItem>
             </Menu>
         </div >
     )

@@ -1,12 +1,15 @@
 import { BaseText } from 'slate'
+import { ALIGN } from './align';
 
 export type CustomElement =
-    | { type: 'paragraph'; children: CustomText[] }
-    | { type: 'bulleted-list'; children: CustomText[] }
-    | { type: 'block-quote'; children: CustomText[] }
-    | { type: 'code-block'; children: CustomText[] }
-    | { type: 'link'; url: string; children: CustomText[] }
+    | ParagraphElement
+    | BulletedListElement
+    | BlockQuoteElement
+    | CodeBlockElement
+    | LinkElement
     | MentionElement
+
+export type MarkFormat = 'bold' | 'italic' | 'underline' | 'strikethrough'
 
 export type CustomText = BaseText & {
     text: string
@@ -15,9 +18,42 @@ export type CustomText = BaseText & {
     underline?: boolean
     strikethrough?: boolean
 }
+export interface ParagraphElement {
+    type: 'paragraph'
+    align?: ALIGN.LEFT | ALIGN.CENTER | ALIGN.RIGHT | ALIGN.JUSTIFY
+    children: CustomText[]
+}
+
+export interface ParagraphElement {
+    type: 'paragraph'
+    align?: ALIGN
+    children: CustomText[]
+}
+
+export interface BulletedListElement {
+    type: 'bulleted-list'
+    children: CustomText[]
+}
+
+export interface BlockQuoteElement {
+    type: 'block-quote'
+    children: CustomText[]
+}
+
+export interface CodeBlockElement {
+    type: 'code-block'
+    children: CustomText[]
+}
+
+export interface LinkElement {
+    type: 'link'
+    url: string
+    children: CustomText[]
+}
 
 export type MentionElement = {
     type: 'mention'
-    character: string
+    name: string
+    email: string
     children: [{ text: '' }]
 }

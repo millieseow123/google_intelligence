@@ -1,5 +1,5 @@
 import React from 'react'
-import { Descendant, Text } from 'slate'
+import { Descendant, Text,Element as SlateElement } from 'slate'
 
 export const renderSlateContent = (nodes: Descendant[]) => {
     return nodes.map((node, i) => {
@@ -18,7 +18,7 @@ export const renderSlateContent = (nodes: Descendant[]) => {
             switch (node.type) {
                 case 'paragraph':
                     return (
-                        <div key={i}>
+                        <div key={i} style={{ lineHeight: 1.8, }}>
                             {renderSlateContent(node.children)}
                         </div>
                     )
@@ -48,8 +48,28 @@ export const renderSlateContent = (nodes: Descendant[]) => {
                             {renderSlateContent(node.children)}
                         </a>
                     )
+                case 'mention':
+                    return (
+                        <span
+                            key={i}
+                            style={{
+                                padding: '2px 6px',
+                                margin: '0 2px',
+                                backgroundColor: '#e0f7fa',
+                                borderRadius: '12px',
+                                fontSize: '0.875rem',
+                                display: 'inline-block',
+                                verticalAlign: 'baseline',
+                            }}
+                        >
+                            @{(node as any).name}
+                        </span>
+                    )
                 default:
-                    return <div key={i}>{renderSlateContent(node.children)}</div>
+                    if (SlateElement.isElement(node)) {
+                        const element = node as SlateElement
+                        return <div key={i}>{renderSlateContent(element.children)}</div>
+                    }
             }
         }
 

@@ -14,7 +14,9 @@ export default function LoadingSpinner() {
                 minHeight: '150px',
             }}
         >
-            <CircularProgress color="primary" />
+            <CircularProgress sx={{
+                color: 'white',
+            }} />
         </Box>
     )
 }

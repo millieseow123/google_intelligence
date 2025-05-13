@@ -1,23 +1,27 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ReactEditor, withReact } from 'slate-react'
 import { createEditor, Descendant, Text, Transforms } from 'slate'
 import { Box, Paper } from '@mui/material'
 import TextEditor from '../textEditor/textEditor'
 import ChatHistory from '../chatHistory/chatHistory'
+import SidebarNav from '../sidebarNav/sidebarNav'
 import { ChatMessage, Sender } from '@/types/chat'
-// import { withMentions } from '@/plugins/mentionPlugin'
-
+import { withMentions } from '@/plugins/mentionPlugin'
+import { useVoiceInput } from '@/hooks/useVoiceInput'
+import { format } from 'date-fns'
+import { v4 as uuidv4 } from 'uuid'
+import { initialHistory } from '@/mock/history'
+import { HistoryItem } from '@/types/history'
 
 import styles from './index.module.css'
-import { useVoiceInput } from '@/hooks/useVoiceInput'
+import { ArrowDownward } from '@mui/icons-material'
+import RoundIconButton from '../roundIconButton/roundIconButton'
 
-interface ChatLayoutProps {
-    accessToken?: string
-}
-
-export default function ChatLayout({ accessToken }: ChatLayoutProps) {
+export default function ChatLayout() {
+    const [history, setHistory] = useState(initialHistory)
+    const [selectedId, setSelectedId] = useState<string | null>(null)
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [editorValue, setEditorValue] = useState<Descendant[]>([
         {
@@ -25,10 +29,135 @@ export default function ChatLayout({ accessToken }: ChatLayoutProps) {
             children: [{ text: '' }]
         }
     ])
-    const [editor] = useState(() => (withReact(createEditor())))
+    const [editor] = useState(() => withMentions(withReact(createEditor())))
     const [uploadedFile, setUploadedFile] = useState<File | null>(null)
     const [isGenerating, setIsGenerating] = useState(false)
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [showScrollButton, setShowScrollButton] = useState(false);
 
+
+    const groupHistoryByTime = (history: HistoryItem[]) => {
+        const today = format(new Date(), 'yyyy-MM-dd')
+        const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd')
+
+        const grouped: Record<'Today' | 'Yesterday' | 'Older', HistoryItem[]> = {
+            Today: [],
+            Yesterday: [],
+            Older: [],
+        }
+
+        history.forEach((item: HistoryItem) => {
+            const date = format(new Date(item.createdAt), 'yyyy-MM-dd')
+            if (date === today) grouped.Today.push(item)
+            else if (date === yesterday) grouped.Yesterday.push(item)
+            else grouped.Older.push(item)
+        })
+
+        return Object.entries(grouped)
+            .filter(([, items]) => items.length > 0)
+            .map(([label, items]) => ({ label, items }))
+    }
+
+    const handleNewChat = () => {
+        const newChat: HistoryItem = {
+            id: uuidv4(),
+            title: 'Untitled Chat',
+            createdAt: new Date().toISOString(),
+            messages: [],
+        }
+
+        setHistory(prev => [newChat, ...prev])
+        setSelectedId(newChat.id)
+        setMessages([])
+        setEditorValue([
+            {
+                type: 'paragraph',
+                children: [{ text: '' }],
+            },
+        ])
+        setUploadedFile(null)
+        resetTranscript()
+    }
+
+    const handleHistorySearch = (query: string) => {
+        const filteredHistory = initialHistory.filter((item) =>
+            item.title.toLowerCase().includes(query.toLowerCase())
+        );
+        setHistory(filteredHistory);
+    };
+
+    const handleSelectChat = (id: string) => {
+        setSelectedId(id);
+        const selectedChat = history.find((chat) => chat.id === id);
+        setMessages(selectedChat?.messages || []);
+    }; 
+
+    const handleEditTitle = (id: string, newTitle: string) => {
+        setHistory((prev) =>
+            prev.map((item) =>
+                item.id === id ? { ...item, title: newTitle } : item
+            )
+        )
+    } 
+    const handleDeleteChat = (idToDelete: string) => {
+        setHistory(prev => prev.filter(chat => chat.id !== idToDelete))
+
+        // If deleted chat is currently selected, switch to first available one
+        if (selectedId === idToDelete) {
+            const nextAvailable = history.find(chat => chat.id !== idToDelete)
+            setSelectedId(nextAvailable?.id || null)
+            setMessages(nextAvailable?.messages || [])
+        }
+    }        
+
+    // Focus editor when a new chat is selected
+    useEffect(() => {
+        if (editor) {
+            Transforms.select(editor, {
+                anchor: { path: [0, 0], offset: 0 },
+                focus: { path: [0, 0], offset: 0 },
+            })
+            ReactEditor.focus(editor)
+        }
+    }, [selectedId]) 
+
+    // Scroll to bottom when new messages are added
+    const scrollToBottom = () => {
+        scrollRef.current?.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: 'smooth',
+        });
+    };
+
+    useEffect(() => {
+        const container = scrollRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 10;
+            setShowScrollButton(!isAtBottom);
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [messages.length]);
+
+    // Reset scroll button + scroll to bottom when new messages are added
+    useEffect(() => {
+        const container = scrollRef.current;
+        if (!container) return;
+
+        const isNearBottom =
+            container.scrollHeight - container.scrollTop <= container.clientHeight + 650;
+
+        if (isNearBottom) {
+            scrollToBottom();
+        } 
+        setShowScrollButton(false);
+    }, [messages]);
+
+    
+    // Voice input
     const {
         transcript,
         listening,
@@ -85,12 +214,22 @@ export default function ChatLayout({ accessToken }: ChatLayoutProps) {
             sx={{
                 height: '100vh',
                 display: 'flex',
-                flexDirection: 'column',
                 bgcolor: '#1e1e1e',
-                padding: '16px 48px',
             }}
         >
-            {/* Chat History */}
+
+            {/* Sidebar */}
+            {/* TODO: Replace mock history with real data */}
+            <SidebarNav
+                handleNewChat={handleNewChat}
+                groupedHistory={groupHistoryByTime(history)}
+                onSelect={handleSelectChat}
+                selectedId={selectedId}
+                onSearch={handleHistorySearch}
+                onEditTitle={handleEditTitle}
+                onDeleteChat={handleDeleteChat}
+            />
+
             <Box
                 sx={{
                     display: 'flex',
@@ -98,26 +237,57 @@ export default function ChatLayout({ accessToken }: ChatLayoutProps) {
                     justifyContent: messages.length === 0 ? 'center' : 'space-between',
                     flexGrow: 1,
                     minHeight: 0,
+                    padding: '16px 48px',
+                    height: 'calc(100vh - 53px)',
+                    overflow: 'hidden',
                 }}
             >
+                {/* Chat History */}
                 {messages.length > 0 && (
-                    <Paper
-                        elevation={3}
+                    <Box
                         sx={{
+                            position: 'relative',
                             flexGrow: 1,
-                            minHeight: 0,
+                            overflowY: 'auto',
+                            bgcolor: 'black',
                             p: 2,
                             borderRadius: 3,
-                            bgcolor: 'black',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: 2,
                         }}
                     >
-                        <ChatHistory messages={messages} />
-
-                    </Paper>
+                        <ChatHistory messages={messages} scrollRef={scrollRef} />
+                        {showScrollButton && (
+                            <RoundIconButton
+                                onClick={scrollToBottom}
+                                icon={<ArrowDownward fontSize="small" />}
+                                sx={{
+                                    position: 'absolute',
+                                    bottom: '0',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    zIndex: 1000, 
+                                    boxShadow: 2,
+                                }}
+                            />
+                        )}      
+                        {/* <RoundIconButton
+                            onClick={scrollToBottom}
+                            icon={<ArrowDownward fontSize="small" />}
+                            sx={{
+                                position: 'absolute',
+                                bottom: '0',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                zIndex: 1000,
+                                boxShadow: 2,
+                            }}
+                        />                   */}
+                    </Box>
                 )}
+
+
 
                 {/* Input Bar */}
                 <Box
@@ -136,7 +306,6 @@ export default function ChatLayout({ accessToken }: ChatLayoutProps) {
                     }}
                 >
                     <TextEditor
-                        accessToken={accessToken}
                         editor={editor}
                         value={editorValue}
                         onChange={setEditorValue}
