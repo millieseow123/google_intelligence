@@ -45,7 +45,6 @@ export default function StaticToolbar({ contacts }: StaticToolbarProps) {
         }
     }
 
-
     const isBlockActive = (editor: Editor, format: string) => {
         const [match] = Editor.nodes<CustomElement>(editor, {
             match: n => !Editor.isEditor(n) && SlateElement.isElement(n) && typeof (n as any).type === 'string' &&
@@ -210,12 +209,12 @@ export default function StaticToolbar({ contacts }: StaticToolbarProps) {
                 if (mentionButtonRef.current) handleMentionClick(mentionButtonRef.current)
             }} />
 
-
+            { /* Mention Dropdown */}
             <Popup open={isMentionOpen} anchorEl={mentionAnchor} onClose={() => {
                 setIsMentionOpen(false)
                 setMentionSearch('')
             }}>
-                <Box sx={{ p: 1, width: 220 }}>
+                <Box sx={{ px: 1, pt: 1, width: 220 }}>
                     <input
                         type="text"
                         placeholder={CONSTANTS.PLACEHOLDERS.CONTACT}
@@ -250,7 +249,7 @@ export default function StaticToolbar({ contacts }: StaticToolbarProps) {
                                     setIsMentionOpen(false)
                                 }}
                                 sx={{
-                                    padding: '6px 8px',
+                                    padding: '6px 0px',
                                     borderRadius: '4px',
                                     color: '#1e1e1e',
                                     cursor: 'pointer',
@@ -266,9 +265,9 @@ export default function StaticToolbar({ contacts }: StaticToolbarProps) {
                 </Box>
             </Popup>
 
-
+            {/* Link Dropdown */}
             <Popup open={isLinkOpen} anchorEl={linkAnchor} onClose={() => setIsLinkOpen(false)}>
-                <Box sx={{ p: 1, borderRadius: '8px' }}>
+                <Box sx={{ p: 1, borderRadius: '12px' }}>
                     <input
                         type="text"
                         placeholder="Insert link"

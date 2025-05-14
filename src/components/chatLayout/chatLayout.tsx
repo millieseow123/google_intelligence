@@ -129,6 +129,7 @@ export default function ChatLayout() {
         });
     };
 
+    // Show scroll button when not at the bottom
     useEffect(() => {
         const container = scrollRef.current;
         if (!container) return;
@@ -242,6 +243,7 @@ export default function ChatLayout() {
                     overflow: 'hidden',
                 }}
             >
+
                 {/* Chat History */}
                 {messages.length > 0 && (
                     <Box
@@ -272,29 +274,15 @@ export default function ChatLayout() {
                                 }}
                             />
                         )}      
-                        {/* <RoundIconButton
-                            onClick={scrollToBottom}
-                            icon={<ArrowDownward fontSize="small" />}
-                            sx={{
-                                position: 'absolute',
-                                bottom: '0',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                zIndex: 1000,
-                                boxShadow: 2,
-                            }}
-                        />                   */}
                     </Box>
                 )}
-
-
 
                 {/* Input Bar */}
                 <Box
                     sx={{
                         mt: messages.length > 0 ? 2 : 0,
                         border: '1px solid #ccc',
-                        borderRadius: 2,
+                        borderRadius: 3,
                         bgcolor: 'white',
                         p: 2,
                         boxSizing: 'border-box',

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Range, Descendant, Editor, Element as SlateElement, Text, Transforms } from 'slate'
 import { Slate, Editable, ReactEditor } from 'slate-react'
 import { Box, Tooltip } from '@mui/material'
+import { useQuery } from '@apollo/client';
 import { ArrowForward, Mic, Stop } from '@mui/icons-material'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import StaticToolbar from '../toolbar/toolbar'
@@ -12,10 +13,10 @@ import { toggleMark } from '@/utils/editorUtils'
 import FilePreview from '../filePreview/filePreview'
 import RoundIconButton from '../roundIconButton/roundIconButton'
 import { Element } from 'slate'
-import { dummyUsers } from '@/mock/users'
 import { CONSTANTS } from '@/constants/text'
 
 import styles from './index.module.css'
+import { GET_USERS } from '@/hooks/useGetUsers'
 
 interface TextEditorProps {
     value: Descendant[]
@@ -41,6 +42,7 @@ export interface FileUploadProps {
     onFileSelect: (file: File | null) => void
 }
 
+// To render the text with different styles based on the marks applied
 const renderLeaf = ({ attributes, children, leaf }: any) => {
     if (leaf.bold) {
         children = <strong>{children}</strong>
@@ -57,6 +59,7 @@ const renderLeaf = ({ attributes, children, leaf }: any) => {
     return <span {...attributes}>{children}</span>
 }
 
+// To render formatted text in the editor
 const renderElement = ({ attributes, children, element }: any) => {
     const style = {
         textAlign: element.align || 'left',
@@ -126,28 +129,31 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
     const { uploadedFile, onFileSelect } = fileUpload;
     const [target, setTarget] = useState<Range | null>(null)
     const [search, setSearch] = useState('')
-    const contacts = dummyUsers
-    const filteredContacts = contacts.filter(c =>
+    const { data, loading, error } = useQuery(GET_USERS);
+    const contacts = data?.getUsers || []
+    const filteredContacts = contacts.filter((c: { name: string }) =>
         c.name.toLowerCase().startsWith(search.toLowerCase())
     )
     const [lastTranscript, setLastTranscript] = useState('')
 
     function hasContent(nodes: Descendant[]): boolean {
-        return nodes.some(node => {
-            if (Text.isText(node)) {
-                return node.text.trim() !== ''
-            }
+        const hasText = nodes.some(node => {
+        if (Text.isText(node)) {
+            return node.text.trim() !== ''
+        }
 
-            if (SlateElement.isElement(node) && node.type === 'mention') {
-                return true
-            }
+        if (SlateElement.isElement(node) && node.type === 'mention') {
+            return true
+        }
 
-            if ('children' in node) {
-                return hasContent(node.children)
-            }
+        if ('children' in node) {
+            return hasContent(node.children)
+        }
 
-            return false
-        })
+        return false
+    })
+
+        return hasText || !!uploadedFile
     }
 
     const handleDragOver = (event: React.DragEvent) => {
@@ -237,6 +243,7 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
         [onSubmit, editor]
     )
 
+    // Append only the new portion of the voice transcript to the editor content
     useEffect(() => {
         if (transcript && transcript !== lastTranscript) {
             const newText = transcript.slice(lastTranscript.length)
@@ -256,7 +263,7 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
         }
     }, [transcript])
 
-
+    // Reset the transcript if the editor is empty to avoid stale voice input
     useEffect(() => {
         const isEditorEmpty =
             value.length === 1 &&
@@ -272,6 +279,7 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
 
     const dropdownRef = useRef<HTMLDivElement>(null)
 
+    // Position dropdown near the text cursor when a target is set.
     useEffect(() => {
         if (target && dropdownRef.current) {
             const domRange = ReactEditor.toDOMRange(editor, target)
@@ -282,6 +290,7 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
             el.style.left = `${rect.left + window.scrollX}px`
         }
     }, [target, editor])
+
     return (
         <div className={styles.textEditor}>
             <Box
@@ -350,8 +359,8 @@ export default function TextEditor({ editor, value, onChange, onSubmit, fileUplo
                             )}
                         <Box
                             sx={{
-                                maxHeight: '160px',  
-                                overflowY: 'auto',     
+                                maxHeight: '160px',
+                                overflowY: 'auto',
                                 '&::-webkit-scrollbar': {
                                     width: '6px',
                                 },

@@ -44,7 +44,7 @@ export default function Home() {
           />
         }
         sx={{
-          borderRadius: '8px',
+          borderRadius: '16px',
           textTransform: 'none',
           padding: '6px 12px',
           fontSize: '14px',

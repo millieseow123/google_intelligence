@@ -45,7 +45,7 @@ export default function Chat() {
                 background: '#1e1e1e',
                 padding: '0.5rem',
                 alignItems: 'center',
-                borderBottom: '0.1px solid #ccc'
+                borderBottom: '1px solid #2a2a2a'
             }}>
                 {session?.user?.image && (
                     <ProfileMenu imageUrl={session.user.image || ""}

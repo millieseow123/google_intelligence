@@ -43,13 +43,14 @@ export default function SidebarNav({ handleNewChat, groupedHistory, onSelect, se
                 p: 2
             }}
         >
+            {/* New Chat Button */}
             <Button
                 variant="contained"
                 fullWidth
                 sx={{
                     bgcolor: 'white',
                     color: 'black',
-                    borderRadius: '12px',
+                    borderRadius: '16px',
                     mb: 2,
                     fontWeight: 500,
                     '&:hover': {
@@ -63,6 +64,7 @@ export default function SidebarNav({ handleNewChat, groupedHistory, onSelect, se
                 </Typography>
             </Button>
 
+            {/* Search Bar */}
             <TextField
                 placeholder="Search"
                 variant="outlined"
@@ -74,12 +76,12 @@ export default function SidebarNav({ handleNewChat, groupedHistory, onSelect, se
                         bgcolor: '#121212',
                         color: 'white',
                         padding: '8px 12px',
-                        borderRadius: '12px',
+                        borderRadius: '16px',
                     },
                     '& .MuiOutlinedInput-root': {
                         '& fieldset': {
                             borderColor: '#333',
-                            borderRadius: '12px',
+                            borderRadius: '16px',
                         },
                         '&:hover fieldset': {
                             borderColor: 'white',
@@ -87,10 +89,11 @@ export default function SidebarNav({ handleNewChat, groupedHistory, onSelect, se
                         '&.Mui-focused fieldset': {
                             borderColor: 'white',
                         },
-                      },
+                    },
                 }}
                 onChange={(e) => onSearch(e.target.value)}
             />
+            {/* Chat History */}
             <List>
                 {groupedHistory.map((group) => (
                     <Box key={group.label} sx={{ mb: 2 }}>
@@ -106,9 +109,8 @@ export default function SidebarNav({ handleNewChat, groupedHistory, onSelect, se
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'space-between',
-                                            borderRadius: 1,
+                                            borderRadius: 2,
                                             px: 1.5,
-                                            py: 0.75,
                                         }}
                                     >
                                         <TextField
@@ -131,10 +133,10 @@ export default function SidebarNav({ handleNewChat, groupedHistory, onSelect, se
                                                 input: {
                                                     style: {
                                                         fontSize: '0.9rem',
-                                                        padding: '6px 8px',
+                                                        padding: '6px',
                                                         color: 'white',
                                                         backgroundColor: '#121212',
-                                                        borderRadius: 6,
+                                                        borderRadius: 3,
                                                     },
                                                 },
                                             }}
@@ -144,7 +146,7 @@ export default function SidebarNav({ handleNewChat, groupedHistory, onSelect, se
                                 ) : (
                                     <ListItemButton
                                         key={id}
-                                            selected={id === selectedId}
+                                        selected={id === selectedId}
                                         onClick={() => {
                                             onSelect(id);
                                         }}
@@ -152,9 +154,10 @@ export default function SidebarNav({ handleNewChat, groupedHistory, onSelect, se
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'space-between',
-                                            borderRadius: 1,
+                                            borderRadius: 2,
                                             '&.Mui-selected': {
-                                                bgcolor: '#1e1e1e',},
+                                                bgcolor: '#1e1e1e',
+                                            },
                                             '&:hover': {
                                                 bgcolor: '#161b22',
                                             },
@@ -211,7 +214,7 @@ export default function SidebarNav({ handleNewChat, groupedHistory, onSelect, se
                     }}
                 >
                     <Typography variant='body2'>
-                    {CONSTANTS.BUTTONS.EDIT}
+                        {CONSTANTS.BUTTONS.EDIT}
                     </Typography>
                 </MenuItem>
                 <MenuItem
@@ -222,8 +225,8 @@ export default function SidebarNav({ handleNewChat, groupedHistory, onSelect, se
                         }
                     }}
                 >
-                    <Typography variant='body2'> 
-                    {CONSTANTS.BUTTONS.DELETE}
+                    <Typography variant='body2'>
+                        {CONSTANTS.BUTTONS.DELETE}
                     </Typography>
                 </MenuItem>
             </Menu>

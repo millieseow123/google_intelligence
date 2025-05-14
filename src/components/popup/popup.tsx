@@ -17,7 +17,7 @@ export default function Popup({ anchorEl, open, onClose, children }: PopupProps)
             anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
             transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         >
-            <Box sx={{ p: 1, borderRadius: '12px', minWidth: 200 }}>
+            <Box sx={{ p: 1, borderRadius: '16px', minWidth: 200 }}>
                 {children}
             </Box>
         </Popover>
