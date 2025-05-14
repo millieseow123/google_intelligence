@@ -9,14 +9,14 @@ import { ArrowForward, Mic, Stop } from '@mui/icons-material'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import StaticToolbar from '../toolbar/toolbar'
 import IconTextButton from '../iconTextButton/iconTextButton'
-import { toggleMark } from '@/utils/editorUtils'
 import FilePreview from '../filePreview/filePreview'
 import RoundIconButton from '../roundIconButton/roundIconButton'
+import { toggleMark } from '@/utils/editorUtils'
 import { Element } from 'slate'
 import { CONSTANTS } from '@/constants/text'
+import { GET_USERS } from '@/hooks/useGetUsers'
 
 import styles from './index.module.css'
-import { GET_USERS } from '@/hooks/useGetUsers'
 
 interface TextEditorProps {
     value: Descendant[]

@@ -1,7 +1,7 @@
-import { Box, Paper } from '@mui/material'
-import { renderSlateContent } from '@/utils/renderSlateContent'
-import FilePreview from '../filePreview/filePreview'
-import { ChatMessage, Sender } from '@/types/chat'
+import { Box, Paper } from '@mui/material';
+import { renderSlateContent } from '@/utils/renderSlateContent';
+import FilePreview from '../filePreview/filePreview';
+import { ChatMessage, Sender } from '@/types/chat';
 
 interface ChatHistoryProps {
     messages: ChatMessage[]

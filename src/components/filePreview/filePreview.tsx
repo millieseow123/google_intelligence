@@ -1,6 +1,6 @@
 import { Box, Paper, Typography, IconButton, Avatar, Tooltip } from '@mui/material'
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import CloseIcon from '@mui/icons-material/Close'
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 
 interface FilePreviewProps {
     file: File

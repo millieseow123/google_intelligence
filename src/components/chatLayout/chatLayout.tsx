@@ -1,23 +1,23 @@
 "use client"
 
-import { useEffect, useRef, useState } from 'react'
-import { ReactEditor, withReact } from 'slate-react'
-import { createEditor, Descendant, Text, Transforms } from 'slate'
-import { Box, Paper } from '@mui/material'
-import TextEditor from '../textEditor/textEditor'
-import ChatHistory from '../chatHistory/chatHistory'
-import SidebarNav from '../sidebarNav/sidebarNav'
-import { ChatMessage, Sender } from '@/types/chat'
-import { withMentions } from '@/plugins/mentionPlugin'
-import { useVoiceInput } from '@/hooks/useVoiceInput'
-import { format } from 'date-fns'
-import { v4 as uuidv4 } from 'uuid'
-import { initialHistory } from '@/mock/history'
-import { HistoryItem } from '@/types/history'
+import { useEffect, useRef, useState } from 'react';
+import { createEditor, Descendant, Text, Transforms } from 'slate';
+import { ReactEditor, withReact } from 'slate-react';
+import { Box } from '@mui/material';
+import { format } from 'date-fns';
+import { v4 as uuidv4 } from 'uuid';
+import { ArrowDownward } from '@mui/icons-material';
+import SidebarNav from '../sidebarNav/sidebarNav';
+import ChatHistory from '../chatHistory/chatHistory';
+import TextEditor from '../textEditor/textEditor';
+import RoundIconButton from '../roundIconButton/roundIconButton';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { withMentions } from '@/plugins/mentionPlugin';
+import { ChatMessage, Sender } from '@/types/chat';
+import { HistoryItem } from '@/types/history';
+import { initialHistory } from '@/mock/history';
 
-import styles from './index.module.css'
-import { ArrowDownward } from '@mui/icons-material'
-import RoundIconButton from '../roundIconButton/roundIconButton'
+import styles from './index.module.css';
 
 export default function ChatLayout() {
     const [history, setHistory] = useState(initialHistory)
@@ -34,6 +34,31 @@ export default function ChatLayout() {
     const [isGenerating, setIsGenerating] = useState(false)
     const scrollRef = useRef<HTMLDivElement>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
+
+    // TODO: uncomment block below. Triggers the LLM query via GraphQL when called, and updates messages with the AI response
+    // const [generateResponse] = useLazyQuery(GENERATE_RESPONSE, {
+    //     onCompleted: (data) => {
+    //         const aiText = data?.generateAiResponse ?? 'No response';
+    //         setMessages(prev => [
+    //             ...prev,
+    //             {
+    //                 sender: Sender.BOT,
+    //                 text: [{ type: 'paragraph', children: [{ text: aiText }] }]
+    //             },
+    //         ]);
+    //         setIsGenerating(false);
+    //     },
+    //     onError: () => {
+    //         setMessages(prev => [
+    //             ...prev,
+    //             {
+    //                 sender: Sender.BOT,
+    //                 text: [{ type: 'paragraph', children: [{ text: 'Sorry, something went wrong.' }] }]
+    //             },
+    //         ]);
+    //         setIsGenerating(false);
+    //     }
+    // });    
 
 
     const groupHistoryByTime = (history: HistoryItem[]) => {
@@ -173,6 +198,7 @@ export default function ChatLayout() {
         )
 
         if (!hasText && !uploadedFile) return
+
         setMessages(prev => [
             ...prev,
             { text: editorValue, file: uploadedFile, sender: Sender.USER },
@@ -190,6 +216,9 @@ export default function ChatLayout() {
         setIsGenerating(true)
 
         // TO REPLACE: Simulate a bot response after 2 seconds
+        // const markdown = slateToMarkdown(editorValue)
+        // generateResponse({ variables: { prompt: markdown } })
+
         setTimeout(() => {
             setMessages(prev => [
                 ...prev,
@@ -197,7 +226,8 @@ export default function ChatLayout() {
             ])
             setIsGenerating(false)
         }, 2000)
-
+       
+        // Focuses editor for new input after sending
         Transforms.select(editor, {
             anchor: { path: [0, 0], offset: 0 },
             focus: { path: [0, 0], offset: 0 }
