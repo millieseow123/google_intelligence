@@ -1,4 +1,5 @@
 export const CONSTANTS = {
+    "TITLE": "Welcome to Schedulo",
     "PLACEHOLDERS": {
         "EDITOR": "What would you like to do today?",
         "CONTACT": "Search for a contact",
@@ -19,6 +20,7 @@ export const CONSTANTS = {
         "VOICE": "Voice input"
     },
     "BUTTONS": {
+        "SIGNIN": "Sign in with Google",
         "ATTACHFILE": "Attach file",
         "SIGNOUT": "Sign out",
         "NEWCHAT": "New chat",

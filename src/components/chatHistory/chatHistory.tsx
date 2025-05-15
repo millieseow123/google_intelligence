@@ -2,15 +2,36 @@ import { Box, Paper } from '@mui/material';
 import { renderSlateContent } from '@/utils/renderSlateContent';
 import FilePreview from '../filePreview/filePreview';
 import { ChatMessage, Sender } from '@/types/chat';
+import LoadingSpinner from '../loadingSpinner/loadingSpinner';
+import LoadingDots from '../loadingDots/loadingDots';
 
 interface ChatHistoryProps {
     messages: ChatMessage[]
     scrollRef?: React.RefObject<HTMLDivElement | null>
+    loading?: boolean
 }
 
-export default function ChatHistory({ messages, scrollRef }: ChatHistoryProps) {
+export default function ChatHistory({ messages, scrollRef, loading }: ChatHistoryProps) {
     if (messages.length === 0) return null
 
+    if (loading) {
+        return (
+            <Box
+                sx={{
+                    flexGrow: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: 'black',
+                    borderRadius: 3,
+                    height: '100%',
+                }}
+            >
+                <LoadingSpinner />
+            </Box>
+        )
+      }
+    
     return (
         <Paper
             ref={scrollRef}
@@ -27,12 +48,12 @@ export default function ChatHistory({ messages, scrollRef }: ChatHistoryProps) {
         >
             {messages.slice().map((msg, idx) => (
                 <Box
-                    key={idx}
-                    sx={{
-                        display: 'flex',
-                        justifyContent: msg.sender === Sender.USER ? 'flex-end' : 'flex-start',
-                        mb: 2,
-                    }}
+                key={idx}
+                sx={{
+                    display: 'flex',
+                    justifyContent: msg.sender === Sender.USER ? 'flex-end' : 'flex-start',
+                    mb: 2,
+                }}
                 >
                     <Box
                         sx={{
@@ -51,7 +72,8 @@ export default function ChatHistory({ messages, scrollRef }: ChatHistoryProps) {
                                 <FilePreview file={msg.file} showRemove={false} />
                             </Box>
                         )}
-                        {renderSlateContent(msg.text)}
+                        {msg.isLoading ? <LoadingDots /> : renderSlateContent(msg.text)}
+
                     </Box>
                 </Box>
             ))}

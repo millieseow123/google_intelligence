@@ -4,7 +4,8 @@ export enum Sender {
 }
 
 export interface ChatMessage {
+    sender: Sender
     text: any[]
     file?: File | null
-    sender: Sender
+    isLoading?: boolean
 }

@@ -8,6 +8,7 @@ import { Box, Button, Typography } from '@mui/material';
 import googleLogo from '@/assets/images/google_logo.svg'
 import LoadingSpinner from '@/components/loadingSpinner/loadingSpinner';
 import { SessionStatus } from '@/types/sessionStatus';
+import { CONSTANTS } from '@/constants/text';
 
 export default function Home() {
   const router = useRouter()
@@ -31,7 +32,7 @@ export default function Home() {
 
   return (
     <Box sx={{ textAlign: 'center', paddingTop: '4rem', gap: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <h1>Welcome to Google Intelligence</h1>
+      <h1>{CONSTANTS.TITLE}</h1>
       <Button
         onClick={() => signIn('google')}
         variant="outlined"
@@ -46,7 +47,6 @@ export default function Home() {
         sx={{
           borderRadius: '16px',
           textTransform: 'none',
-          padding: '6px 12px',
           fontSize: '14px',
           fontWeight: 500,
           color: '#1e1e1e',
@@ -58,8 +58,8 @@ export default function Home() {
           },
         }}
       >
-        <Typography variant="caption" sx={{ fontSize: '14px' }}>
-          Sign in with Google
+        <Typography variant="subtitle1" sx={{ fontSize: '14px' }}>
+          {CONSTANTS.BUTTONS.SIGNIN}
         </Typography>
       </Button>
     </Box>

@@ -1,10 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react';
-import { createEditor, Descendant, Text, Transforms } from 'slate';
+import { createEditor, Element as SlateElement, Descendant, Text, Transforms } from 'slate';
 import { ReactEditor, withReact } from 'slate-react';
 import { Box } from '@mui/material';
-import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { ArrowDownward } from '@mui/icons-material';
 import SidebarNav from '../sidebarNav/sidebarNav';
@@ -15,125 +14,47 @@ import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { withMentions } from '@/plugins/mentionPlugin';
 import { ChatMessage, Sender } from '@/types/chat';
 import { HistoryItem } from '@/types/history';
-import { initialHistory } from '@/mock/history';
-
-import styles from './index.module.css';
+import { slateToMarkdown } from '@/utils/slateToMarkdown';
+import { groupHistoryByTime } from '@/utils/dateHelper';
+import { useChatLLM } from '@/hooks/useChatLLM';
+import { useChatHistory } from '@/hooks/useChatHistory';
 
 export default function ChatLayout() {
-    const [history, setHistory] = useState(initialHistory)
-    const [selectedId, setSelectedId] = useState<string | null>(null)
-    const [messages, setMessages] = useState<ChatMessage[]>([])
-    const [editorValue, setEditorValue] = useState<Descendant[]>([
-        {
-            type: 'paragraph',
-            children: [{ text: '' }]
-        }
-    ])
-    const [editor] = useState(() => withMentions(withReact(createEditor())))
-    const [uploadedFile, setUploadedFile] = useState<File | null>(null)
-    const [isGenerating, setIsGenerating] = useState(false)
+
+
     const scrollRef = useRef<HTMLDivElement>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
+    const [loadingMessages, setLoadingMessages] = useState(false)
+    const [editor] = useState(() => withMentions(withReact(createEditor())))
+    const [editorValue, setEditorValue] = useState<Descendant[]>([{ type: 'paragraph', children: [{ text: '' }] }])
+    const { history, setHistory, loading } = useChatHistory()
+    const [selectedId, setSelectedId] = useState<string | null>(null)
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+    const [messages, setMessages] = useState<ChatMessage[]>([])
+    const [isGenerating, setIsGenerating] = useState(false)
 
-    // TODO: uncomment block below. Triggers the LLM query via GraphQL when called, and updates messages with the AI response
-    // const [generateResponse] = useLazyQuery(GENERATE_RESPONSE, {
-    //     onCompleted: (data) => {
-    //         const aiText = data?.generateAiResponse ?? 'No response';
-    //         setMessages(prev => [
-    //             ...prev,
-    //             {
-    //                 sender: Sender.BOT,
-    //                 text: [{ type: 'paragraph', children: [{ text: aiText }] }]
-    //             },
-    //         ]);
-    //         setIsGenerating(false);
-    //     },
-    //     onError: () => {
-    //         setMessages(prev => [
-    //             ...prev,
-    //             {
-    //                 sender: Sender.BOT,
-    //                 text: [{ type: 'paragraph', children: [{ text: 'Sorry, something went wrong.' }] }]
-    //             },
-    //         ]);
-    //         setIsGenerating(false);
-    //     }
-    // });    
+    // Voice input
+    const {
+        transcript,
+        listening,
+        startListening,
+        stopListening,
+        resetTranscript
+    } = useVoiceInput()
 
+    const { generateTitle, generateLLMResponse, stopGeneration } = useChatLLM({
+        selectedId,
+        setHistory,
+        setMessages,
+    });
 
-    const groupHistoryByTime = (history: HistoryItem[]) => {
-        const today = format(new Date(), 'yyyy-MM-dd')
-        const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd')
-
-        const grouped: Record<'Today' | 'Yesterday' | 'Older', HistoryItem[]> = {
-            Today: [],
-            Yesterday: [],
-            Older: [],
-        }
-
-        history.forEach((item: HistoryItem) => {
-            const date = format(new Date(item.createdAt), 'yyyy-MM-dd')
-            if (date === today) grouped.Today.push(item)
-            else if (date === yesterday) grouped.Yesterday.push(item)
-            else grouped.Older.push(item)
-        })
-
-        return Object.entries(grouped)
-            .filter(([, items]) => items.length > 0)
-            .map(([label, items]) => ({ label, items }))
-    }
-
-    const handleNewChat = () => {
-        const newChat: HistoryItem = {
-            id: uuidv4(),
-            title: 'Untitled Chat',
-            createdAt: new Date().toISOString(),
-            messages: [],
-        }
-
-        setHistory(prev => [newChat, ...prev])
-        setSelectedId(newChat.id)
-        setMessages([])
-        setEditorValue([
-            {
-                type: 'paragraph',
-                children: [{ text: '' }],
-            },
-        ])
-        setUploadedFile(null)
-        resetTranscript()
-    }
-
-    const handleHistorySearch = (query: string) => {
-        const filteredHistory = initialHistory.filter((item) =>
-            item.title.toLowerCase().includes(query.toLowerCase())
-        );
-        setHistory(filteredHistory);
+    // Scroll to bottom when new messages are added
+    const scrollToBottom = () => {
+        scrollRef.current?.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: 'smooth',
+        });
     };
-
-    const handleSelectChat = (id: string) => {
-        setSelectedId(id);
-        const selectedChat = history.find((chat) => chat.id === id);
-        setMessages(selectedChat?.messages || []);
-    }; 
-
-    const handleEditTitle = (id: string, newTitle: string) => {
-        setHistory((prev) =>
-            prev.map((item) =>
-                item.id === id ? { ...item, title: newTitle } : item
-            )
-        )
-    } 
-    const handleDeleteChat = (idToDelete: string) => {
-        setHistory(prev => prev.filter(chat => chat.id !== idToDelete))
-
-        // If deleted chat is currently selected, switch to first available one
-        if (selectedId === idToDelete) {
-            const nextAvailable = history.find(chat => chat.id !== idToDelete)
-            setSelectedId(nextAvailable?.id || null)
-            setMessages(nextAvailable?.messages || [])
-        }
-    }        
 
     // Focus editor when a new chat is selected
     useEffect(() => {
@@ -144,15 +65,7 @@ export default function ChatLayout() {
             })
             ReactEditor.focus(editor)
         }
-    }, [selectedId]) 
-
-    // Scroll to bottom when new messages are added
-    const scrollToBottom = () => {
-        scrollRef.current?.scrollTo({
-            top: scrollRef.current.scrollHeight,
-            behavior: 'smooth',
-        });
-    };
+    }, [selectedId])
 
     // Show scroll button when not at the bottom
     useEffect(() => {
@@ -178,19 +91,152 @@ export default function ChatLayout() {
 
         if (isNearBottom) {
             scrollToBottom();
-        } 
+        }
         setShowScrollButton(false);
     }, [messages]);
 
-    
-    // Voice input
-    const {
-        transcript,
-        listening,
-        startListening,
-        stopListening,
-        resetTranscript
-    } = useVoiceInput()
+    const handleNewChat = () => {
+        const newChat: HistoryItem = {
+            id: uuidv4(),
+            title: 'Untitled Chat',
+            createdAt: new Date().toISOString(),
+            messages: [],
+        }
+
+        setHistory(prev => [newChat, ...prev])
+        setSelectedId(newChat.id)
+        setMessages([])
+        setEditorValue([
+            {
+                type: 'paragraph',
+                children: [{ text: '' }],
+            },
+        ])
+        setUploadedFile(null)
+        resetTranscript()
+    }
+
+    const handleHistorySearch = (query: string) => {
+        const filteredHistory = history.filter((item) =>
+            item.title.toLowerCase().includes(query.toLowerCase())
+        );
+        setHistory(filteredHistory);
+    };
+
+    const handleSelectChat = (id: string) => {
+        setLoadingMessages(true)
+        setSelectedId(id);
+        const selectedChat = history.find((chat) => chat.id === id);
+        setMessages(selectedChat?.messages || []);
+        setLoadingMessages(false)
+    };
+
+    const handleEditTitle = (id: string, newTitle: string) => {
+        setHistory((prev) =>
+            prev.map((item) =>
+                item.id === id ? { ...item, title: newTitle } : item
+            )
+        )
+    }
+
+    const handleDeleteChat = (idToDelete: string) => {
+        setHistory(prev => prev.filter(chat => chat.id !== idToDelete))
+
+        // If deleted chat is currently selected, switch to first available one
+        if (selectedId === idToDelete) {
+            const nextAvailable = history.find(chat => chat.id !== idToDelete)
+            setSelectedId(nextAvailable?.id || null)
+            setMessages(nextAvailable?.messages || [])
+        }
+    }
+
+    const sendMessageToLLM = async (chatId: string) => {
+        const userMessage = {
+            sender: Sender.USER,
+            text: editorValue as { type: string; children: { text: string }[] }[],
+        };
+
+        const botPlaceholder = {
+            sender: Sender.BOT,
+            text: [{ type: 'paragraph', children: [{ text: '' }] }],
+            isLoading: true,
+        };
+
+        setMessages(prev => [...prev, userMessage, botPlaceholder]);
+
+        // Title generation (if first message)
+        const firstLine =
+            SlateElement.isElement(editorValue[0]) && 'children' in editorValue[0]
+                ? editorValue[0].children?.[0]?.text || ''
+                : '';
+        generateTitle({ variables: { message: firstLine } });
+
+        setEditorValue([{ type: 'paragraph', children: [{ text: '' }] }]);
+        setUploadedFile(null);
+        resetTranscript();
+        setIsGenerating(true);
+
+        // LLM Call
+        const markdown = slateToMarkdown(editorValue);
+        const aiText = await generateLLMResponse(markdown);
+
+        if (aiText) {
+            setMessages(prev => {
+                const updated = [...prev];
+                const lastIndex = updated.length - 1;
+
+                if (
+                    updated[lastIndex] &&
+                    updated[lastIndex].sender === Sender.BOT &&
+                    updated[lastIndex].isLoading
+                ) {
+                    updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        text: [{ type: 'paragraph', children: [{ text: aiText }] }],
+                        isLoading: false,
+                    };
+                } else {
+                    updated.push({
+                        sender: Sender.BOT,
+                        text: [{ type: 'paragraph', children: [{ text: aiText }] }],
+                        isLoading: false,
+                    });
+                }
+                return updated;
+            });
+
+            setHistory(prev => {
+                return prev.map(chat => {
+                    if (chat.id !== chatId) return chat;
+
+                    const updatedMessages = [...chat.messages];
+                    const lastIndex = updatedMessages.length - 1;
+                    const lastMessage = updatedMessages[lastIndex] as ChatMessage;
+
+                    if (
+                        lastMessage &&
+                        lastMessage.sender === Sender.BOT &&
+                        lastMessage.isLoading
+                    ) {
+                        updatedMessages[lastIndex] = {
+                            ...lastMessage,
+                            text: [{ type: 'paragraph', children: [{ text: aiText }] }],
+                            isLoading: false,
+                        };
+                    } else {
+                        updatedMessages.push({
+                            sender: Sender.BOT,
+                            text: [{ type: 'paragraph', children: [{ text: aiText }] }],
+                            isLoading: false,
+                        } as ChatMessage);
+                    }
+
+                    return { ...chat, messages: updatedMessages };
+                });
+            })
+            setIsGenerating(false);
+        }
+    };
 
     const handleSend = () => {
         const hasText = editorValue.some(node =>
@@ -199,55 +245,40 @@ export default function ChatLayout() {
 
         if (!hasText && !uploadedFile) return
 
-        setMessages(prev => [
-            ...prev,
-            { text: editorValue, file: uploadedFile, sender: Sender.USER },
-            { text: [{ type: 'paragraph', children: [{ text: 'Waiting for bot...' }] }], sender: Sender.BOT },
-        ])
+        if (!selectedId) {
+            const newChatId = uuidv4();
+            const newChat: HistoryItem = {
+                id: newChatId,
+                title: 'Untitled Chat',
+                createdAt: new Date().toISOString(),
+                messages: [],
+            };
 
-        setEditorValue([
-            {
-                type: 'paragraph',
-                children: [{ text: '' }],
-            },
-        ])
-        setUploadedFile(null);
-        resetTranscript();
-        setIsGenerating(true)
+            setHistory(prev => [newChat, ...prev]);
+            setSelectedId(newChatId);
 
-        // TO REPLACE: Simulate a bot response after 2 seconds
-        // const markdown = slateToMarkdown(editorValue)
-        // generateResponse({ variables: { prompt: markdown } })
+            // Wait one tick, then send message
+            setTimeout(() => {
+                sendMessageToLLM(newChatId);
+            }, 0);
+        } else {
+            sendMessageToLLM(selectedId);
+        }
 
-        setTimeout(() => {
-            setMessages(prev => [
-                ...prev,
-                { text: [{ type: 'paragraph', children: [{ text: 'This is a bot response' }] }], sender: Sender.BOT },
-            ])
-            setIsGenerating(false)
-        }, 2000)
-       
         // Focuses editor for new input after sending
         Transforms.select(editor, {
             anchor: { path: [0, 0], offset: 0 },
             focus: { path: [0, 0], offset: 0 }
         })
         ReactEditor.focus(editor)
-
     }
 
     const handleStop = () => {
+        stopGeneration();
         setIsGenerating(false)
     }
-
     return (
-        <Box
-            sx={{
-                height: '100vh',
-                display: 'flex',
-                bgcolor: '#1e1e1e',
-            }}
-        >
+        <Box sx={{ height: '100vh', display: 'flex', bgcolor: '#1e1e1e' }}>
 
             {/* Sidebar */}
             {/* TODO: Replace mock history with real data */}
@@ -289,7 +320,7 @@ export default function ChatLayout() {
                             gap: 2,
                         }}
                     >
-                        <ChatHistory messages={messages} scrollRef={scrollRef} />
+                        <ChatHistory messages={messages} scrollRef={scrollRef} loading={loadingMessages} />
                         {showScrollButton && (
                             <RoundIconButton
                                 onClick={scrollToBottom}
@@ -299,11 +330,11 @@ export default function ChatLayout() {
                                     bottom: '0',
                                     left: '50%',
                                     transform: 'translateX(-50%)',
-                                    zIndex: 1000, 
+                                    zIndex: 1000,
                                     boxShadow: 2,
                                 }}
                             />
-                        )}      
+                        )}
                     </Box>
                 )}
 
@@ -328,10 +359,7 @@ export default function ChatLayout() {
                         value={editorValue}
                         onChange={setEditorValue}
                         onSubmit={handleSend}
-                        fileUpload={{
-                            uploadedFile,
-                            onFileSelect: setUploadedFile,
-                        }}
+                        fileUpload={{ uploadedFile, onFileSelect: setUploadedFile, }}
                         isGenerating={isGenerating}
                         onStop={handleStop}
                         voiceInput={{

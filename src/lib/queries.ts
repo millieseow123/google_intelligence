@@ -1,7 +1,7 @@
 import { gql } from '@apollo/client';
 
-export const GENERATE_RESPONSE = gql`
-  query GenerateResponse($prompt: String!) {
-    generateAiResponse(prompt: $prompt)
+export const GENERATE_CHAT_TITLE = gql`
+  query($message: String!) {
+    generateChatTitle(message: $message)
   }
 `;
