@@ -20,14 +20,14 @@ import { useChatLLM } from '@/hooks/useChatLLM';
 import { useChatHistory } from '@/hooks/useChatHistory';
 
 export default function ChatLayout() {
-
-
     const scrollRef = useRef<HTMLDivElement>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [loadingMessages, setLoadingMessages] = useState(false)
     const [editor] = useState(() => withMentions(withReact(createEditor())))
     const [editorValue, setEditorValue] = useState<Descendant[]>([{ type: 'paragraph', children: [{ text: '' }] }])
     const { history, setHistory, loading } = useChatHistory()
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filteredHistory, setFilteredHistory] = useState<HistoryItem[]>(history);
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [uploadedFile, setUploadedFile] = useState<File | null>(null)
     const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -96,15 +96,7 @@ export default function ChatLayout() {
     }, [messages]);
 
     const handleNewChat = () => {
-        const newChat: HistoryItem = {
-            id: uuidv4(),
-            title: 'Untitled Chat',
-            createdAt: new Date().toISOString(),
-            messages: [],
-        }
-
-        setHistory(prev => [newChat, ...prev])
-        setSelectedId(newChat.id)
+        setSelectedId("")
         setMessages([])
         setEditorValue([
             {
@@ -117,10 +109,7 @@ export default function ChatLayout() {
     }
 
     const handleHistorySearch = (query: string) => {
-        const filteredHistory = history.filter((item) =>
-            item.title.toLowerCase().includes(query.toLowerCase())
-        );
-        setHistory(filteredHistory);
+        setSearchQuery(query);
     };
 
     const handleSelectChat = (id: string) => {
@@ -150,7 +139,7 @@ export default function ChatLayout() {
         }
     }
 
-    const sendMessageToLLM = async (chatId: string) => {
+    const sendMessageToLLM = async (chatId: string, isNewChat = false) => {
         const userMessage = {
             sender: Sender.USER,
             text: editorValue as { type: string; children: { text: string }[] }[],
@@ -164,12 +153,27 @@ export default function ChatLayout() {
 
         setMessages(prev => [...prev, userMessage, botPlaceholder]);
 
-        // Title generation (if first message)
-        const firstLine =
-            SlateElement.isElement(editorValue[0]) && 'children' in editorValue[0]
-                ? editorValue[0].children?.[0]?.text || ''
-                : '';
-        generateTitle({ variables: { message: firstLine } });
+
+        setHistory(prev => {
+            return prev.map(chat => {
+                if (chat.id !== chatId) return chat;
+
+                return {
+                    ...chat,
+                    messages: [...chat.messages, userMessage, botPlaceholder],
+                };
+            });
+        });
+
+        // Title generation for new chats
+        if (isNewChat) {
+            const firstLine =
+                SlateElement.isElement(editorValue[0]) && 'children' in editorValue[0]
+                    ? editorValue[0].children?.[0]?.text || ''
+                    : '';
+
+            generateTitle({ variables: { message: firstLine } });
+        }        
 
         setEditorValue([{ type: 'paragraph', children: [{ text: '' }] }]);
         setUploadedFile(null);
@@ -239,6 +243,8 @@ export default function ChatLayout() {
     };
 
     const handleSend = () => {
+        if (isGenerating) return;
+
         const hasText = editorValue.some(node =>
             'children' in node && node.children.some(child => Text.isText(child) && child.text.trim() !== '')
         )
@@ -249,7 +255,7 @@ export default function ChatLayout() {
             const newChatId = uuidv4();
             const newChat: HistoryItem = {
                 id: newChatId,
-                title: 'Untitled Chat',
+                title: 'New Chat',
                 createdAt: new Date().toISOString(),
                 messages: [],
             };
@@ -259,10 +265,10 @@ export default function ChatLayout() {
 
             // Wait one tick, then send message
             setTimeout(() => {
-                sendMessageToLLM(newChatId);
+                sendMessageToLLM(newChatId, true);
             }, 0);
         } else {
-            sendMessageToLLM(selectedId);
+            sendMessageToLLM(selectedId, false);
         }
 
         // Focuses editor for new input after sending
@@ -277,14 +283,28 @@ export default function ChatLayout() {
         stopGeneration();
         setIsGenerating(false)
     }
+
+    // Search chat history
+    useEffect(() => {
+        const trimmed = searchQuery.trim().toLowerCase();
+        if (trimmed === '') {
+            setFilteredHistory(history); // reset to full list
+        } else {
+            setFilteredHistory(
+                history.filter(item =>
+                    item.title.toLowerCase().includes(trimmed)
+                )
+            );
+        }
+    }, [searchQuery, history]);
+
     return (
         <Box sx={{ height: '100vh', display: 'flex', bgcolor: '#1e1e1e' }}>
 
             {/* Sidebar */}
-            {/* TODO: Replace mock history with real data */}
             <SidebarNav
                 handleNewChat={handleNewChat}
-                groupedHistory={groupHistoryByTime(history)}
+                groupedHistory={groupHistoryByTime(filteredHistory)}
                 onSelect={handleSelectChat}
                 selectedId={selectedId}
                 onSearch={handleHistorySearch}

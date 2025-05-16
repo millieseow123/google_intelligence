@@ -14,7 +14,8 @@ export function useChatLLM({
 
     const [generateTitle] = useLazyQuery(GENERATE_CHAT_TITLE, {
         onCompleted: (data) => {
-            const aiTitle = data?.generateChatTitle || 'New Chat';
+            let aiTitle = data?.generateChatTitle || 'New Chat';
+            aiTitle = aiTitle.charAt(0).toUpperCase() + aiTitle.slice(1); 
             if (selectedId) {
                 setHistory(prev =>
                     prev.map(item =>
@@ -28,7 +29,7 @@ export function useChatLLM({
             if (selectedId) {
                 setHistory(prev =>
                     prev.map(item =>
-                        item.id === selectedId ? { ...item, title: 'Untitled Chat' } : item
+                        item.id === selectedId ? { ...item, title: 'New Chat' } : item
                     )
                 );
             }
