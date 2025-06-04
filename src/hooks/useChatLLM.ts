@@ -8,7 +8,6 @@ export function useChatLLM({
 }: {
     selectedId: string | null;
     setHistory: React.Dispatch<React.SetStateAction<any[]>>;
-    setMessages: React.Dispatch<React.SetStateAction<any[]>>;
 }) {
     const abortControllerRef = useRef<AbortController | null>(null);
 

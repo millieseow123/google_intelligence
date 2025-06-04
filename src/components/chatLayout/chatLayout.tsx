@@ -24,8 +24,23 @@ import { slateToMarkdown } from "@/utils/slateToMarkdown";
 import { groupHistoryByTime } from "@/utils/dateHelper";
 import { useChatLLM } from "@/hooks/useChatLLM";
 import { useChatHistory } from "@/hooks/useChatHistory";
+import { markdownToSlate } from "@/utils/markdownToSlate";
+import { useChatContext } from "@/context/ChatContext";
+import ProfileMenu from "../profileMenu/profileMenu";
+import { Session } from "next-auth";
 
-export default function ChatLayout() {
+interface ChatLayoutProps {
+  session: Session | null;
+  signOut: () => void;
+  setIsSigningOut: (val: boolean) => void;
+}
+
+
+export default function ChatLayout({
+  session,
+  signOut,
+  setIsSigningOut,
+}: ChatLayoutProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -39,8 +54,13 @@ export default function ChatLayout() {
     useState<HistoryItem[]>(history);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const selectedChat = history.find(chat => chat.id === selectedId);
+  const messages = selectedChat?.messages || [];
+  const {
+    addUserMessage,
+    addBotMessage,
+    clearContextFor,
+  } = useChatContext();
 
   // Voice input
   const {
@@ -54,7 +74,6 @@ export default function ChatLayout() {
   const { generateTitle, generateLLMResponse, stopGeneration } = useChatLLM({
     selectedId,
     setHistory,
-    setMessages,
   });
 
   // Scroll to bottom when new messages are added
@@ -108,8 +127,10 @@ export default function ChatLayout() {
   }, [messages]);
 
   const handleNewChat = () => {
+    setHistory(prev =>
+      prev.map(chat => ({ ...chat, isGenerating: false }))
+    );
     setSelectedId("");
-    setMessages([]);
     setEditorValue([
       {
         type: "paragraph",
@@ -117,7 +138,9 @@ export default function ChatLayout() {
       },
     ]);
     setUploadedFile(null);
+    stopListening();
     resetTranscript();
+    if (selectedId) clearContextFor(selectedId);
   };
 
   const handleHistorySearch = (query: string) => {
@@ -127,9 +150,12 @@ export default function ChatLayout() {
   const handleSelectChat = (id: string) => {
     setLoadingMessages(true);
     setSelectedId(id);
-    const selectedChat = history.find((chat) => chat.id === id);
-    setMessages(selectedChat?.messages || []);
+    setEditorValue([{ type: 'paragraph', children: [{ text: '' }] }]);
+    setUploadedFile(null);
+    stopListening();
+    resetTranscript();
     setLoadingMessages(false);
+    if (selectedId) clearContextFor(selectedId);
   };
 
   const handleEditTitle = (id: string, newTitle: string) => {
@@ -145,7 +171,6 @@ export default function ChatLayout() {
     if (selectedId === idToDelete) {
       const nextAvailable = history.find((chat) => chat.id !== idToDelete);
       setSelectedId(nextAvailable?.id || null);
-      setMessages(nextAvailable?.messages || []);
     }
   };
 
@@ -161,14 +186,13 @@ export default function ChatLayout() {
       isLoading: true,
     };
 
-    setMessages((prev) => [...prev, userMessage, botPlaceholder]);
-
     setHistory((prev) => {
       return prev.map((chat) => {
         if (chat.id !== chatId) return chat;
 
         return {
           ...chat,
+          isGenerating: true,
           messages: [...chat.messages, userMessage, botPlaceholder],
         };
       });
@@ -187,40 +211,28 @@ export default function ChatLayout() {
     setEditorValue([{ type: "paragraph", children: [{ text: "" }] }]);
     setUploadedFile(null);
     resetTranscript();
-    setIsGenerating(true);
 
     // LLM Call
-    const markdown = slateToMarkdown(editorValue);
-    const aiText = await generateLLMResponse(markdown);
+    const markdown = (slateToMarkdown(editorValue));
+    if (!chatId) return;
+    const updatedPrompt = addUserMessage(chatId, markdown);
 
+    const aiText = await generateLLMResponse(updatedPrompt);
     if (aiText) {
-      setMessages((prev) => {
-        const updated = [...prev];
-        const lastIndex = updated.length - 1;
-
-        if (
-          updated[lastIndex] &&
-          updated[lastIndex].sender === Sender.BOT &&
-          updated[lastIndex].isLoading
-        ) {
-          updated[lastIndex] = {
-            ...updated[lastIndex],
-            text: [{ type: "paragraph", children: [{ text: aiText }] }],
-            isLoading: false,
-          };
-        } else {
-          updated.push({
-            sender: Sender.BOT,
-            text: [{ type: "paragraph", children: [{ text: aiText }] }],
-            isLoading: false,
-          });
-        }
-        return updated;
-      });
-
+      addBotMessage(chatId, aiText);
+    }
+    if (aiText) {
+      const slateContext = await markdownToSlate(aiText);
       setHistory((prev) => {
         return prev.map((chat) => {
           if (chat.id !== chatId) return chat;
+
+          chat.id === chatId
+            ? {
+              ...chat,
+              messages: [...chat.messages, { sender: Sender.BOT, text: markdownToSlate(aiText) }]
+            }
+            : chat
 
           const updatedMessages = [...chat.messages];
           const lastIndex = updatedMessages.length - 1;
@@ -233,26 +245,27 @@ export default function ChatLayout() {
           ) {
             updatedMessages[lastIndex] = {
               ...lastMessage,
-              text: [{ type: "paragraph", children: [{ text: aiText }] }],
+              text: slateContext,
               isLoading: false,
             };
           } else {
             updatedMessages.push({
               sender: Sender.BOT,
-              text: [{ type: "paragraph", children: [{ text: aiText }] }],
+              text: slateContext,
               isLoading: false,
             } as ChatMessage);
           }
 
-          return { ...chat, messages: updatedMessages };
+          return { ...chat, messages: updatedMessages, isGenerating: false };
         });
       });
-      setIsGenerating(false);
     }
   };
 
   const handleSend = () => {
-    if (isGenerating) return;
+    const currentChat = history.find(chat => chat.id === selectedId);
+
+    if (currentChat?.isGenerating) return;
 
     const hasText = editorValue.some(
       (node) =>
@@ -294,7 +307,30 @@ export default function ChatLayout() {
 
   const handleStop = () => {
     stopGeneration();
-    setIsGenerating(false);
+
+    if (!selectedId) return;
+
+    setHistory(prev =>
+      prev.map(chat => {
+        if (chat.id !== selectedId) return chat;
+
+        const updatedMessages = [...chat.messages];
+        const lastIndex = updatedMessages.length - 1;
+
+        if (
+          updatedMessages[lastIndex] &&
+          updatedMessages[lastIndex].sender === Sender.BOT &&
+          updatedMessages[lastIndex].isLoading
+        ) {
+          updatedMessages[lastIndex] = {
+            ...updatedMessages[lastIndex],
+            isLoading: false,
+          };
+        }
+
+        return { ...chat, messages: updatedMessages, isGenerating: false };
+      })
+    );
   };
 
   // Search chat history
@@ -310,8 +346,7 @@ export default function ChatLayout() {
   }, [searchQuery, history]);
 
   return (
-    <Box sx={{ height: "100vh", display: "flex", bgcolor: "#1e1e1e" }}>
-      {/* Sidebar */}
+    <Box sx={{ height: "100vh", display: "flex", overflowY: "hidden", bgcolor: "#1e1e1e" }}>
       <SidebarNav
         handleNewChat={handleNewChat}
         groupedHistory={groupHistoryByTime(filteredHistory)}
@@ -326,83 +361,116 @@ export default function ChatLayout() {
         sx={{
           display: "flex",
           flexDirection: "column",
-          justifyContent: messages.length === 0 ? "center" : "space-between",
           flexGrow: 1,
           minHeight: 0,
-          padding: "16px 48px",
           height: "calc(100vh - 53px)",
           overflow: "hidden",
         }}
       >
-        {/* Chat History */}
-        {messages.length > 0 && (
-          <Box
-            sx={{
-              position: "relative",
-              flexGrow: 1,
-              overflowY: "auto",
-              bgcolor: "black",
-              p: 2,
-              borderRadius: 3,
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-            }}
-          >
-            <ChatHistory
-              messages={messages}
-              scrollRef={scrollRef}
-              loading={loadingMessages}
-            />
-            {showScrollButton && (
-              <RoundIconButton
-                onClick={scrollToBottom}
-                icon={<ArrowDownward fontSize="small" />}
-                sx={{
-                  position: "absolute",
-                  bottom: "0",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  zIndex: 1000,
-                  boxShadow: 2,
-                }}
-              />
-            )}
-          </Box>
-        )}
 
-        {/* Input Bar */}
         <Box
           sx={{
-            mt: messages.length > 0 ? 2 : 0,
-            border: "1px solid #ccc",
-            borderRadius: 3,
-            bgcolor: "white",
-            p: 2,
-            boxSizing: "border-box",
-            maxWidth: "100%",
-            transform: messages.length === 0 ? "translateY(-50%)" : "none",
-            transition: "transform 0.4s ease-in-out",
-            alignSelf: "center",
-            width: "100%",
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            background: "#1e1e1e",
+            borderBottom: "1px solid #2a2a2a",
+            minHeight: "40px",
+            pt: 2,
+            pr: 2,
+            flexShrink: 0,
           }}
         >
-          <TextEditor
-            editor={editor}
-            value={editorValue}
-            onChange={setEditorValue}
-            onSubmit={handleSend}
-            fileUpload={{ uploadedFile, onFileSelect: setUploadedFile }}
-            isGenerating={isGenerating}
-            onStop={handleStop}
-            voiceInput={{
-              transcript,
-              listening,
-              startListening,
-              stopListening,
-              resetTranscript,
+          {session?.user?.image && (
+            <ProfileMenu imageUrl={session.user.image || ""}
+              onSignOutStart={() => {
+                setIsSigningOut(true)
+                signOut()
+              }} />
+          )}
+        </Box>
+        <Box
+          sx={{
+            flexGrow: 1,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: messages.length === 0 ? "center" : "space-between",
+            padding: "16px 48px",
+            overflow: "hidden",
+          }}
+        >
+          {/* Chat History */}
+          {messages.length > 0 && (
+            <Box
+              sx={{
+                position: "relative",
+                flexGrow: 1,
+                overflowY: "auto",
+                bgcolor: "black",
+                p: 2,
+                borderRadius: 1,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              <ChatHistory
+                messages={messages}
+                scrollRef={scrollRef}
+                loading={loadingMessages}
+              />
+              {showScrollButton && (
+                <RoundIconButton
+                  onClick={scrollToBottom}
+                  icon={<ArrowDownward fontSize="small" />}
+                  sx={{
+                    position: "absolute",
+                    bottom: "0",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: 1000,
+                    boxShadow: 2,
+                  }}
+                />
+              )}
+            </Box>
+          )}
+
+          {/* Input Bar */}
+          <Box
+            sx={{
+              mt: messages.length > 0 ? 2 : 0,
+              border: "1px solid #ccc",
+              borderRadius: 1,
+              bgcolor: "white",
+              p: 2,
+              boxSizing: "border-box",
+              maxWidth: "100%",
+              transform: messages.length === 0 ? "translateY(-50%)" : "none",
+              transition: "transform 0.4s ease-in-out",
+              alignSelf: "center",
+              width: "100%",
             }}
-          />
+          >
+            <TextEditor
+              editor={editor}
+              value={editorValue}
+              onChange={setEditorValue}
+              onSubmit={handleSend}
+              fileUpload={{ uploadedFile, onFileSelect: setUploadedFile }}
+              isGenerating={
+                history.find(chat => chat.id === selectedId)?.isGenerating ?? false
+              }
+              onStop={handleStop}
+              voiceInput={{
+                transcript,
+                listening,
+                startListening,
+                stopListening,
+                resetTranscript,
+              }}
+            />
+          </Box>
         </Box>
       </Box>
     </Box>

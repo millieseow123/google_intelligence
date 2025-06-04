@@ -31,7 +31,7 @@ export default function FilePreview({ file, onRemove, showRemove = true }: FileP
                 color: 'white',
                 px: 2,
                 py: 1,
-                borderRadius: 2,
+                borderRadius: 1,
                 width: 'fit-content',
                 mb: 1
             }}

@@ -38,7 +38,7 @@ export default function SidebarNav({ handleNewChat, groupedHistory, onSelect, se
                 minWidth: '200px',
                 flexShrink: 0,
                 bgcolor: 'black',
-                height: '100%',
+                height: '100vh',
                 overflowY: 'auto',
                 p: 2
             }}

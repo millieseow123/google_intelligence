@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import ChatLayout from '../../components/chatLayout/chatLayout'
 import LoadingSpinner from '@/components/loadingSpinner/loadingSpinner'
 import { SessionStatus } from '@/types/sessionStatus';
-import ProfileMenu from '@/components/profileMenu/profileMenu';
 
 export default function Chat() {
     const { data: session, status } = useSession()
@@ -32,14 +31,14 @@ export default function Chat() {
         <LoadingSpinner />
     </div>
 
-//ToDO: wrap below code with auth so /chat can be accessed only when authenticated
+    //ToDO: wrap below code with auth so /chat can be accessed only when authenticated
     return (
         <div style={{
             height: '100vh',
             display: 'flex',
             flexDirection: 'column',
         }}>
-            <div style={{
+            {/* <div style={{
                 display: 'flex',
                 justifyContent: 'flex-end',
                 background: '#1e1e1e',
@@ -54,9 +53,11 @@ export default function Chat() {
                             signOut()
                         }} />
                 )}
-            </div>
+            </div> */}
 
-            <ChatLayout />
+            <ChatLayout session={session}
+                signOut={signOut}
+                setIsSigningOut={setIsSigningOut} />
         </div>
     )
 }

@@ -23,15 +23,15 @@ export default function ChatHistory({ messages, scrollRef, loading }: ChatHistor
                     alignItems: 'center',
                     justifyContent: 'center',
                     bgcolor: 'black',
-                    borderRadius: 3,
+                    borderRadius: 1,
                     height: '100%',
                 }}
             >
                 <LoadingSpinner />
             </Box>
         )
-      }
-    
+    }
+
     return (
         <Paper
             ref={scrollRef}
@@ -41,25 +41,31 @@ export default function ChatHistory({ messages, scrollRef, loading }: ChatHistor
                 minHeight: 0,
                 bgcolor: 'black',
                 p: 2,
-                borderRadius: 2,
                 display: 'flex',
                 flexDirection: 'column',
             }}
         >
-            {messages.slice().map((msg, idx) => (
-                <Box
-                key={idx}
-                sx={{
-                    display: 'flex',
-                    justifyContent: msg.sender === Sender.USER ? 'flex-end' : 'flex-start',
-                    mb: 2,
-                }}
+            {messages.slice().map((msg, idx) => {
+                if (
+                    msg.sender === Sender.BOT &&
+                    !msg.isLoading &&
+                    (!msg.text || msg.text.length === 0 || msg.text[0]?.children?.[0]?.text.trim() === '')
+                ) {
+                    return null;
+                }
+                return (<Box
+                    key={idx}
+                    sx={{
+                        display: 'flex',
+                        justifyContent: msg.sender === Sender.USER ? 'flex-end' : 'flex-start',
+                        mb: 2,
+                    }}
                 >
                     <Box
                         sx={{
                             px: 1.5,
                             py: 1,
-                            borderRadius: 2,
+                            borderRadius: 1,
                             boxShadow: 1,
                             maxWidth: '80%',
                             wordBreak: 'break-word',
@@ -75,8 +81,8 @@ export default function ChatHistory({ messages, scrollRef, loading }: ChatHistor
                         {msg.isLoading ? <LoadingDots /> : renderSlateContent(msg.text)}
 
                     </Box>
-                </Box>
-            ))}
+                </Box>)
+            })}
         </Paper>
     )
 }

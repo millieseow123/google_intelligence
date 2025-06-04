@@ -10,4 +10,5 @@ export type HistoryItem = {
     title: string
     createdAt: string
     messages: ChatMessage[]
+    isGenerating?: boolean
   }
