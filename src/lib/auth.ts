@@ -8,8 +8,16 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope:
-            "openid profile email https://www.googleapis.com/auth/contacts.readonly",
+          scope: [
+            "openid",
+            "profile",
+            "email",
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/contacts.readonly",
+            "https://www.googleapis.com/auth/tasks",
+            "https://www.googleapis.com/auth/gmail.send",
+            "https://mail.google.com/",
+          ].join(" "),
         },
       },
     }),
