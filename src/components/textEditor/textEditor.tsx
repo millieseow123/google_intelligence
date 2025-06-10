@@ -305,12 +305,13 @@ export default function TextEditor({
     }, [transcript]);
 
     // Reset the transcript if the editor is empty to avoid stale voice input
+    const isEditorEmpty =
+        value.length === 1 &&
+        Element.isElement(value[0]) &&
+        value[0].type === "paragraph" &&
+        value[0].children?.[0]?.text === "";
+
     useEffect(() => {
-        const isEditorEmpty =
-            value.length === 1 &&
-            Element.isElement(value[0]) &&
-            value[0].type === "paragraph" &&
-            value[0].children?.[0]?.text === "";
 
         if (isEditorEmpty) {
             resetTranscript();
@@ -393,7 +394,7 @@ export default function TextEditor({
                                 onRemove={() => onFileSelect(null)}
                             />
                         )}
-                        {!uploadedFile &&
+                        {(!uploadedFile && isEditorEmpty) &&
                             SlateElement.isElement(editor.children[0]) &&
                             Editor.isEmpty(editor, editor.children[0]) &&
                             editor.children.length === 1 &&

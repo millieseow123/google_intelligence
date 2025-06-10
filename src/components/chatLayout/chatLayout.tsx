@@ -7,6 +7,7 @@ import {
   Descendant,
   Text,
   Transforms,
+  Editor,
 } from "slate";
 import { ReactEditor, withReact } from "slate-react";
 import { Box } from "@mui/material";
@@ -48,6 +49,7 @@ export default function ChatLayout({
   const [editorValue, setEditorValue] = useState<Descendant[]>([
     { type: "paragraph", children: [{ text: "" }] },
   ]);
+  const [drafts, setDrafts] = useState<Record<string, Descendant[]>>({});
   const { history, setHistory } = useChatHistory();
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredHistory, setFilteredHistory] =
@@ -87,10 +89,14 @@ export default function ChatLayout({
   // Focus editor when a new chat is selected
   useEffect(() => {
     if (editor) {
-      Transforms.select(editor, {
-        anchor: { path: [0, 0], offset: 0 },
-        focus: { path: [0, 0], offset: 0 },
-      });
+      const isEmpty =
+        editor.children.length === 1 &&
+        SlateElement.isElement(editor.children[0]) &&
+        Editor.isEmpty(editor, editor.children[0]);
+
+      const point = isEmpty ? { path: [0, 0], offset: 0 } : Editor.end(editor, []);
+
+      Transforms.select(editor, { anchor: point, focus: point });
       ReactEditor.focus(editor);
     }
   }, [selectedId]);
@@ -137,6 +143,10 @@ export default function ChatLayout({
         children: [{ text: "" }],
       },
     ]);
+    setDrafts(prev => ({
+      ...prev,
+      [selectedId || '']: editorValue,
+    }));
     setUploadedFile(null);
     stopListening();
     resetTranscript();
@@ -149,8 +159,16 @@ export default function ChatLayout({
 
   const handleSelectChat = (id: string) => {
     setLoadingMessages(true);
+
+    if (selectedId) {
+      setDrafts(prev => ({
+        ...prev,
+        [selectedId]: editorValue,
+      }));
+    }
+
     setSelectedId(id);
-    setEditorValue([{ type: 'paragraph', children: [{ text: '' }] }]);
+    setEditorValue(drafts[id] || [{ type: 'paragraph', children: [{ text: '' }] }]);
     setUploadedFile(null);
     stopListening();
     resetTranscript();
@@ -288,6 +306,13 @@ export default function ChatLayout({
 
       setHistory((prev) => [newChat, ...prev]);
       setSelectedId(newChatId);
+
+      if (selectedId) {
+        setDrafts(prev => ({
+          ...prev,
+          [selectedId]: [{ type: 'paragraph', children: [{ text: '' }] }],
+        }));
+      }
 
       // Wait one tick, then send message
       setTimeout(() => {
