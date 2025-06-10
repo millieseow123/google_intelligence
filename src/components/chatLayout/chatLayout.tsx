@@ -192,16 +192,33 @@ export default function ChatLayout({
     }
   };
 
+  const handleUpdateMessage = (messageId: string, value: Descendant[]) => {
+    if (!selectedId) return;
+    setHistory(prev =>
+      prev.map(chat => {
+        if (chat.id !== selectedId) return chat;
+        const updated = chat.messages.map(m =>
+          m.id === messageId ? { ...m, text: value } : m
+        );
+        return { ...chat, messages: updated };
+      })
+    );
+  };
+
   const sendMessageToLLM = async (chatId: string, isNewChat = false) => {
-    const userMessage = {
+    const userMessage: ChatMessage = {
+      id: uuidv4(),
       sender: Sender.USER,
       text: editorValue as { type: string; children: { text: string }[] }[],
+      isEmail: false,
     };
 
-    const botPlaceholder = {
+    const botPlaceholder: ChatMessage = {
+      id: uuidv4(),
       sender: Sender.BOT,
       text: [{ type: "paragraph", children: [{ text: "" }] }],
       isLoading: true,
+      isEmail: false,
     };
 
     setHistory((prev) => {
@@ -241,16 +258,10 @@ export default function ChatLayout({
     }
     if (aiText) {
       const slateContext = await markdownToSlate(aiText);
-      setHistory((prev) => {
-        return prev.map((chat) => {
+      const isEmailResponse = /subject:/i.test(aiText);
+      setHistory(prev =>
+        prev.map(chat => {
           if (chat.id !== chatId) return chat;
-
-          chat.id === chatId
-            ? {
-              ...chat,
-              messages: [...chat.messages, { sender: Sender.BOT, text: markdownToSlate(aiText) }]
-            }
-            : chat
 
           const updatedMessages = [...chat.messages];
           const lastIndex = updatedMessages.length - 1;
@@ -265,12 +276,15 @@ export default function ChatLayout({
               ...lastMessage,
               text: slateContext,
               isLoading: false,
+              isEmail: isEmailResponse,
             };
           } else {
             updatedMessages.push({
+              id: uuidv4(),
               sender: Sender.BOT,
               text: slateContext,
               isLoading: false,
+              isEmail: isEmailResponse,
             } as ChatMessage);
           }
 
@@ -443,6 +457,7 @@ export default function ChatLayout({
                 messages={messages}
                 scrollRef={scrollRef}
                 loading={loadingMessages}
+                onUpdateMessage={handleUpdateMessage}
               />
               {showScrollButton && (
                 <RoundIconButton
