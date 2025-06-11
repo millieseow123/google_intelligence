@@ -88,17 +88,21 @@ export default function ChatLayout({
 
   // Focus editor when a new chat is selected
   useEffect(() => {
-    if (editor) {
+    if (!editor) return;
+
+    setTimeout(() => {
       const isEmpty =
         editor.children.length === 1 &&
         SlateElement.isElement(editor.children[0]) &&
         Editor.isEmpty(editor, editor.children[0]);
 
-      const point = isEmpty ? { path: [0, 0], offset: 0 } : Editor.end(editor, []);
+      const point = isEmpty
+        ? { path: [0, 0], offset: 0 }
+        : Editor.end(editor, []);
 
       Transforms.select(editor, { anchor: point, focus: point });
       ReactEditor.focus(editor);
-    }
+    }, 0);
   }, [selectedId]);
 
   // Show scroll button when not at the bottom
@@ -194,14 +198,18 @@ export default function ChatLayout({
 
   const sendMessageToLLM = async (chatId: string, isNewChat = false) => {
     const userMessage = {
+      id: uuidv4(),
       sender: Sender.USER,
       text: editorValue as { type: string; children: { text: string }[] }[],
+      isEmail: false,
     };
 
     const botPlaceholder = {
+      id: uuidv4(),
       sender: Sender.BOT,
       text: [{ type: "paragraph", children: [{ text: "" }] }],
       isLoading: true,
+      isEmail: false,
     };
 
     setHistory((prev) => {
@@ -255,6 +263,7 @@ export default function ChatLayout({
           const updatedMessages = [...chat.messages];
           const lastIndex = updatedMessages.length - 1;
           const lastMessage = updatedMessages[lastIndex] as ChatMessage;
+          const isEmailResponse = /subject:/i.test(aiText);
 
           if (
             lastMessage &&
@@ -265,12 +274,14 @@ export default function ChatLayout({
               ...lastMessage,
               text: slateContext,
               isLoading: false,
+              isEmail: isEmailResponse,
             };
           } else {
             updatedMessages.push({
               sender: Sender.BOT,
               text: slateContext,
               isLoading: false,
+              isEmail: isEmailResponse,
             } as ChatMessage);
           }
 

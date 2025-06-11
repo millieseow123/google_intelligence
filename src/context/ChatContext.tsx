@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage, Sender } from '@/types/chat';
 
 type ChatContextMap = {
@@ -22,8 +23,10 @@ export const ChatContextProvider = ({ children }: { children: ReactNode }) => {
     const addUserMessage = (chatId: string, message: string): string => {
         let newPrompt = '';
         setChatContextMap(prev => {
-            const updatedMessages = [...(prev[chatId] || []), { sender: Sender.USER, text: [message] }];
-
+            const updatedMessages = [
+                ...(prev[chatId] || []),
+                { id: uuidv4(), sender: Sender.USER, text: [message], isEmail: false },
+            ];
             const updatedMap = {
                 ...prev,
                 [chatId]: updatedMessages,
@@ -41,7 +44,10 @@ export const ChatContextProvider = ({ children }: { children: ReactNode }) => {
     const addBotMessage = (chatId: string, message: string) => {
         setChatContextMap(prev => ({
             ...prev,
-            [chatId]: [...(prev[chatId] || []), { sender: Sender.BOT, text: [message] }],
+            [chatId]: [
+                ...(prev[chatId] || []),
+                { id: uuidv4(), sender: Sender.BOT, text: [message], isEmail: false },
+            ],
         }));
     };
 
